@@ -8,14 +8,14 @@
 from __future__ import annotations
 
 import json
-import sqlite3
-from pathlib import Path
 import os
+from pathlib import Path
+import sqlite3
 from typing import Any
 
 import requests
 
-TOOLS_DB = "tools.db"
+TOOLS_DB = "database.db"
 SCANNED_REPOS_FILE = "scanned_repos.json"
 
 
@@ -37,7 +37,9 @@ def check_file_exists(owner: str, repo: str, path: str, headers: dict[str, str])
     return r.status_code == 200
 
 
-def find_cli_entrypoints(owner: str, repo: str, repo_name: str, headers: dict[str, str]) -> list[tuple[str, str]]:
+def find_cli_entrypoints(
+    owner: str, repo: str, repo_name: str, headers: dict[str, str]
+) -> list[tuple[str, str]]:
     """
     Find CLI entrypoints in a Go repository using the Contents API.
     Returns list of tuples: (binary_name, package_path_suffix)
@@ -45,7 +47,7 @@ def find_cli_entrypoints(owner: str, repo: str, repo_name: str, headers: dict[st
     - For root main.go: (repo_name, "")  # empty suffix means root package
     """
     entrypoints: list[tuple[str, str]] = []
-    
+
     # First, check for cmd/ directory (standard Go layout)
     url = f"https://api.github.com/repos/{owner}/{repo}/contents/cmd"
     r = requests.get(url, headers=headers)
@@ -54,12 +56,12 @@ def find_cli_entrypoints(owner: str, repo: str, repo_name: str, headers: dict[st
         for cmd in cmd_dirs:
             entrypoints.append((cmd, f"cmd/{cmd}"))
         return entrypoints
-    
+
     # If no cmd/ directory, check for root-level main.go
     if check_file_exists(owner, repo, "main.go", headers):
         entrypoints.append((repo_name, ""))
         return entrypoints
-    
+
     # Check other common locations for main.go
     # Some repos put main.go in pkg/ or internal/ directories
     common_paths = ["pkg/main.go", "internal/main.go"]
@@ -69,7 +71,7 @@ def find_cli_entrypoints(owner: str, repo: str, repo_name: str, headers: dict[st
             package_suffix = path.split("/")[0]  # "pkg" or "internal"
             entrypoints.append((repo_name, package_suffix))
             break
-    
+
     return entrypoints
 
 
@@ -85,7 +87,7 @@ def init_database(db_path: str) -> None:
     """Initialize the SQLite database with required tables."""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    
+
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS binaries (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -94,15 +96,15 @@ def init_database(db_path: str) -> None:
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    
+
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_package ON binaries(package)
     """)
-    
+
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_name ON binaries(name)
     """)
-    
+
     conn.commit()
     conn.close()
 
@@ -121,10 +123,7 @@ def add_binary(db_path: str, name: str, package: str) -> None:
     """Add a binary to the database."""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.execute(
-        "INSERT OR IGNORE INTO binaries (name, package) VALUES (?, ?)",
-        (name, package)
-    )
+    cursor.execute("INSERT OR IGNORE INTO binaries (name, package) VALUES (?, ?)", (name, package))
     conn.commit()
     conn.close()
 
@@ -145,10 +144,10 @@ def save_scanned_repos(repos_file: str, repos: set[str]) -> None:
 
 def main() -> int:
     headers = get_headers()
-    
+
     # Initialize database
     init_database(TOOLS_DB)
-    
+
     # Load existing data
     existing_packages = get_existing_packages(TOOLS_DB)
     scanned_repos = load_scanned_repos(SCANNED_REPOS_FILE)
@@ -175,7 +174,7 @@ def main() -> int:
                 else:
                     # Root-level main.go - package is at repo root
                     package_path = f"github.com/{owner}/{repo_name}@{version}"
-                
+
                 if package_path not in existing_packages:
                     add_binary(TOOLS_DB, binary_name, package_path)
                     existing_packages.add(package_path)

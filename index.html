@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>SQLite Viewer – Auto Load</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    table { border-collapse: collapse; margin-top: 20px; width: 100%; }
+    table, th, td { border: 1px solid #ccc; }
+    th, td { padding: 8px; text-align: left; }
+  </style>
+</head>
+
+<body>
+  <h1>Go Binary Repository</h1>
+
+  <div id="output"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
+
+  <script>
+    let db = null;
+
+    async function loadDBFromFile(fileBuffer) {
+      const SQL = await initSqlJs({
+        locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}`
+      });
+      db = new SQL.Database(new Uint8Array(fileBuffer));
+      showTable("binaries");  // default table
+    }
+
+    async function autoLoad() {
+      try {
+        const response = await fetch("./database.db");
+        if (!response.ok) throw "File not found";
+        const buffer = await response.arrayBuffer();
+        await loadDBFromFile(buffer);
+      } catch (err) {
+        console.warn("Auto-load failed:", err);
+      }
+    }
+
+    function showTable(tableName) {
+      try {
+        const result = db.exec(`SELECT * FROM ${tableName}`);
+        const output = document.getElementById("output");
+
+        if (!result.length) {
+          output.innerHTML = `<p>No data in <b>${tableName}</b></p>`;
+          return;
+        }
+
+        const cols = result[0].columns;
+        const rows = result[0].values;
+
+        let html = `<h2>${tableName}</h2><table><thead><tr>`;
+        cols.forEach(c => html += `<th>${c}</th>`);
+        html += "</tr></thead><tbody>";
+
+        rows.forEach(r => {
+          html += "<tr>";
+          r.forEach(cell => html += `<td>${cell}</td>`);
+          html += "</tr>";
+        });
+
+        html += "</tbody></table>";
+        output.innerHTML = html;
+      } catch (e) {
+        document.getElementById("output").innerHTML =
+          `<p style="color:red">Error loading table <b>${tableName}</b>: ${e}</p>`;
+      }
+    }
+
+    // 🔥 auto-load local database.db on page load
+    autoLoad();
+  </script>
+</body>
+</html>
