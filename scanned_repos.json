@@ -1,0 +1,12 @@
+[
+  "Infisical/infisical",
+  "asciimoo/wuzz",
+  "charmbracelet/bubbletea",
+  "charmbracelet/lipgloss",
+  "dlvhdr/gh-dash",
+  "gitleaks/gitleaks",
+  "junegunn/fzf",
+  "spf13/cobra",
+  "urfave/cli",
+  "wader/fq"
+]
