@@ -1,0 +1,20 @@
+package cmd
+
+import (
+	"github.com/spf13/cobra"
+)
+
+var rootCmd = &cobra.Command{
+	Use:   "gomanager",
+	Short: "Manage Go binaries from a curated database",
+	Long: `GoManager is a package manager for Go binaries.
+
+It downloads a curated database of Go CLI tools and lets you
+search, install, upgrade, and export them as PKGBUILDs.`,
+}
+
+// Execute runs the root command.
+func Execute() error {
+	return rootCmd.Execute()
+}
+

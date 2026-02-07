@@ -1,78 +1,443 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>SQLite Viewer – Auto Load</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GoManager — Go Binary Repository</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    table { border-collapse: collapse; margin-top: 20px; width: 100%; }
-    table, th, td { border: 1px solid #ccc; }
-    th, td { padding: 8px; text-align: left; }
+    :root {
+      --bg: #ffffff;
+      --bg-secondary: #f7f8fa;
+      --text: #1a1a2e;
+      --text-muted: #6b7280;
+      --border: #e5e7eb;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --confirmed: #16a34a;
+      --confirmed-bg: #dcfce7;
+      --failed: #dc2626;
+      --failed-bg: #fef2f2;
+      --unknown: #9ca3af;
+      --unknown-bg: #f3f4f6;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f172a;
+        --bg-secondary: #1e293b;
+        --text: #e2e8f0;
+        --text-muted: #94a3b8;
+        --border: #334155;
+        --accent: #3b82f6;
+        --accent-hover: #60a5fa;
+        --confirmed: #22c55e;
+        --confirmed-bg: #14532d;
+        --failed: #ef4444;
+        --failed-bg: #450a0a;
+        --unknown: #64748b;
+        --unknown-bg: #1e293b;
+        --shadow: 0 1px 3px rgba(0,0,0,0.3);
+      }
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+    header p {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+    }
+    .controls {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .search-box {
+      flex: 1;
+      min-width: 200px;
+      padding: 0.65rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg-secondary);
+      color: var(--text);
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .search-box:focus { border-color: var(--accent); }
+    .filter-btn {
+      padding: 0.65rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg-secondary);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .filter-btn:hover { border-color: var(--accent); }
+    .filter-btn.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .stats {
+      display: flex;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .stat-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.5rem;
+      flex: 1;
+      min-width: 120px;
+      text-align: center;
+    }
+    .stat-card .num {
+      font-size: 1.75rem;
+      font-weight: 700;
+      display: block;
+    }
+    .stat-card .label {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    thead { background: var(--bg); }
+    th {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      border-bottom: 2px solid var(--border);
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    th:hover { color: var(--accent); }
+    th .sort-arrow { margin-left: 4px; opacity: 0.4; }
+    th.sorted .sort-arrow { opacity: 1; }
+    td {
+      padding: 0.6rem 1rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--bg); }
+    .name-cell {
+      font-weight: 600;
+    }
+    .name-cell a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .name-cell a:hover { text-decoration: underline; }
+    .desc-cell {
+      color: var(--text-muted);
+      max-width: 350px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .badge-confirmed { background: var(--confirmed-bg); color: var(--confirmed); }
+    .badge-failed { background: var(--failed-bg); color: var(--failed); }
+    .badge-unknown { background: var(--unknown-bg); color: var(--unknown); }
+    .copy-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 3px 8px;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      transition: all 0.15s;
+    }
+    .copy-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .copy-btn.copied {
+      border-color: var(--confirmed);
+      color: var(--confirmed);
+    }
+    .install-cell {
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+    .stars-cell { white-space: nowrap; }
+    .flags-cell {
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-muted);
+    }
+    .loading {
+      text-align: center;
+      padding: 4rem;
+      color: var(--text-muted);
+    }
+    @media (max-width: 768px) {
+      .controls { flex-direction: column; }
+      .stats { flex-direction: column; }
+      table { font-size: 0.85rem; }
+      td, th { padding: 0.5rem; }
+      .desc-cell { display: none; }
+    }
   </style>
 </head>
 
 <body>
-  <h1>Go Binary Repository</h1>
+  <div class="container">
+    <header>
+      <h1>GoManager</h1>
+      <p>Catalog of Go binaries installable via <code>go install</code></p>
+    </header>
 
-  <div id="output"></div>
+    <div class="stats" id="stats"></div>
+
+    <div class="controls">
+      <input type="text" class="search-box" id="search" placeholder="Search by name, package, or description..." />
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn" data-filter="confirmed">Confirmed</button>
+      <button class="filter-btn" data-filter="failed">Failed</button>
+      <button class="filter-btn" data-filter="unknown">Unknown</button>
+    </div>
+
+    <div id="output"><div class="loading">Loading database...</div></div>
+  </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
-
   <script>
     let db = null;
+    let allRows = [];
+    let sortCol = "stars";
+    let sortDir = "desc";
+    let activeFilter = "all";
 
-    async function loadDBFromFile(fileBuffer) {
-      const SQL = await initSqlJs({
-        locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}`
-      });
-      db = new SQL.Database(new Uint8Array(fileBuffer));
-      showTable("binaries");  // default table
-    }
-
-    async function autoLoad() {
+    async function init() {
       try {
-        const response = await fetch("./database.db");
-        if (!response.ok) throw "File not found";
-        const buffer = await response.arrayBuffer();
-        await loadDBFromFile(buffer);
-      } catch (err) {
-        console.warn("Auto-load failed:", err);
-      }
-    }
-
-    function showTable(tableName) {
-      try {
-        const result = db.exec(`SELECT * FROM ${tableName}`);
-        const output = document.getElementById("output");
-
-        if (!result.length) {
-          output.innerHTML = `<p>No data in <b>${tableName}</b></p>`;
-          return;
-        }
-
-        const cols = result[0].columns;
-        const rows = result[0].values;
-
-        let html = `<h2>${tableName}</h2><table><thead><tr>`;
-        cols.forEach(c => html += `<th>${c}</th>`);
-        html += "</tr></thead><tbody>";
-
-        rows.forEach(r => {
-          html += "<tr>";
-          r.forEach(cell => html += `<td>${cell}</td>`);
-          html += "</tr>";
+        const SQL = await initSqlJs({
+          locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}`
         });
-
-        html += "</tbody></table>";
-        output.innerHTML = html;
-      } catch (e) {
+        const response = await fetch("./database.db");
+        if (!response.ok) throw new Error("database.db not found");
+        const buffer = await response.arrayBuffer();
+        db = new SQL.Database(new Uint8Array(buffer));
+        loadData();
+      } catch (err) {
         document.getElementById("output").innerHTML =
-          `<p style="color:red">Error loading table <b>${tableName}</b>: ${e}</p>`;
+          `<div class="empty-state">Failed to load database: ${err.message}</div>`;
       }
     }
 
-    // 🔥 auto-load local database.db on page load
-    autoLoad();
+    function loadData() {
+      const result = db.exec(
+        `SELECT id, name, package, version, description, repo_url, stars,
+                build_status, build_flags, build_error, last_verified
+         FROM binaries ORDER BY stars DESC`
+      );
+      if (!result.length) {
+        allRows = [];
+      } else {
+        const cols = result[0].columns;
+        allRows = result[0].values.map(row => {
+          const obj = {};
+          cols.forEach((c, i) => obj[c] = row[i]);
+          return obj;
+        });
+      }
+      renderStats();
+      renderTable();
+    }
+
+    function renderStats() {
+      const total = allRows.length;
+      const confirmed = allRows.filter(r => r.build_status === "confirmed").length;
+      const failed = allRows.filter(r => r.build_status === "failed").length;
+      const unknown = allRows.filter(r => r.build_status === "unknown" || r.build_status === "pending").length;
+      document.getElementById("stats").innerHTML = `
+        <div class="stat-card"><span class="num">${total}</span><span class="label">Total Packages</span></div>
+        <div class="stat-card"><span class="num" style="color:var(--confirmed)">${confirmed}</span><span class="label">Confirmed</span></div>
+        <div class="stat-card"><span class="num" style="color:var(--failed)">${failed}</span><span class="label">Failed</span></div>
+        <div class="stat-card"><span class="num">${unknown}</span><span class="label">Unknown</span></div>
+      `;
+    }
+
+    function getFilteredRows() {
+      const query = document.getElementById("search").value.toLowerCase();
+      return allRows.filter(r => {
+        if (activeFilter !== "all") {
+          if (activeFilter === "unknown" && r.build_status !== "unknown" && r.build_status !== "pending") return false;
+          if (activeFilter !== "unknown" && r.build_status !== activeFilter) return false;
+        }
+        if (query) {
+          const hay = `${r.name} ${r.package} ${r.description || ""}`.toLowerCase();
+          return hay.includes(query);
+        }
+        return true;
+      });
+    }
+
+    function sortRows(rows) {
+      return rows.slice().sort((a, b) => {
+        let va = a[sortCol], vb = b[sortCol];
+        if (typeof va === "string") va = (va || "").toLowerCase();
+        if (typeof vb === "string") vb = (vb || "").toLowerCase();
+        if (va == null) va = "";
+        if (vb == null) vb = "";
+        let cmp = 0;
+        if (typeof va === "number" && typeof vb === "number") cmp = va - vb;
+        else cmp = String(va).localeCompare(String(vb));
+        return sortDir === "asc" ? cmp : -cmp;
+      });
+    }
+
+    function renderTable() {
+      const rows = sortRows(getFilteredRows());
+      if (!rows.length) {
+        document.getElementById("output").innerHTML =
+          `<div class="empty-state">No packages found.</div>`;
+        return;
+      }
+
+      const columns = [
+        { key: "name", label: "Name" },
+        { key: "description", label: "Description" },
+        { key: "stars", label: "Stars" },
+        { key: "build_status", label: "Status" },
+        { key: "version", label: "Version" },
+        { key: "package", label: "Install" },
+      ];
+
+      let html = "<table><thead><tr>";
+      for (const col of columns) {
+        const sorted = sortCol === col.key;
+        const arrow = sorted ? (sortDir === "asc" ? "&#9650;" : "&#9660;") : "&#9650;";
+        html += `<th class="${sorted ? "sorted" : ""}" data-col="${col.key}">${col.label}<span class="sort-arrow">${arrow}</span></th>`;
+      }
+      html += "</tr></thead><tbody>";
+
+      for (const r of rows) {
+        const badgeClass = r.build_status === "confirmed" ? "badge-confirmed"
+          : r.build_status === "failed" ? "badge-failed" : "badge-unknown";
+        const statusLabel = r.build_status || "unknown";
+        const installCmd = `go install ${r.package}@${r.version || "latest"}`;
+        const flags = parseFlags(r.build_flags);
+        const flagStr = flags ? flags + " " : "";
+        const fullCmd = flagStr + installCmd;
+
+        html += "<tr>";
+        html += `<td class="name-cell"><a href="${r.repo_url || "#"}" target="_blank" rel="noopener">${esc(r.name)}</a></td>`;
+        html += `<td class="desc-cell" title="${esc(r.description || "")}">${esc(r.description || "—")}</td>`;
+        html += `<td class="stars-cell">${(r.stars || 0).toLocaleString()}</td>`;
+        html += `<td><span class="badge ${badgeClass}">${statusLabel}</span></td>`;
+        html += `<td>${esc(r.version || "latest")}</td>`;
+        html += `<td class="install-cell"><code>${esc(fullCmd)}</code> <button class="copy-btn" onclick="copyCmd(this, '${esc(fullCmd, true)}')" title="Copy install command">Copy</button></td>`;
+        html += "</tr>";
+      }
+
+      html += "</tbody></table>";
+      document.getElementById("output").innerHTML = html;
+    }
+
+    function parseFlags(flagsJson) {
+      if (!flagsJson || flagsJson === "{}") return "";
+      try {
+        const obj = JSON.parse(flagsJson);
+        return Object.entries(obj).map(([k, v]) => `${k}=${v}`).join(" ");
+      } catch { return ""; }
+    }
+
+    function esc(str, forAttr) {
+      if (!str) return "";
+      const div = document.createElement("div");
+      div.textContent = str;
+      let result = div.innerHTML;
+      if (forAttr) result = result.replace(/'/g, "\\'");
+      return result;
+    }
+
+    function copyCmd(btn, cmd) {
+      navigator.clipboard.writeText(cmd).then(() => {
+        btn.textContent = "Copied!";
+        btn.classList.add("copied");
+        setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 1500);
+      });
+    }
+
+    // Event listeners
+    document.getElementById("search").addEventListener("input", renderTable);
+
+    document.querySelectorAll(".filter-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        activeFilter = btn.dataset.filter;
+        renderTable();
+      });
+    });
+
+    document.getElementById("output").addEventListener("click", e => {
+      const th = e.target.closest("th[data-col]");
+      if (!th) return;
+      const col = th.dataset.col;
+      if (sortCol === col) {
+        sortDir = sortDir === "asc" ? "desc" : "asc";
+      } else {
+        sortCol = col;
+        sortDir = col === "stars" ? "desc" : "asc";
+      }
+      renderTable();
+    });
+
+    init();
   </script>
 </body>
 </html>
