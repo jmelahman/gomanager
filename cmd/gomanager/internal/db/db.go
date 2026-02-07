@@ -43,14 +43,63 @@ func Open() (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+	return OpenPath(path)
+}
+
+// OpenPath opens a database at the given path.
+func OpenPath(path string) (*sql.DB, error) {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return nil, fmt.Errorf("database not found at %s — run 'gomanager update-db' first", path)
+		return nil, fmt.Errorf("database not found at %s", path)
 	}
 	conn, err := sql.Open("sqlite", path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open database: %w", err)
 	}
 	return conn, nil
+}
+
+// GetUnverified returns binaries that need build verification.
+func GetUnverified(conn *sql.DB, statuses []string, limit int) ([]Binary, error) {
+	placeholders := make([]string, len(statuses))
+	args := make([]any, len(statuses))
+	for i, s := range statuses {
+		placeholders[i] = "?"
+		args[i] = s
+	}
+	args = append(args, limit)
+
+	query := fmt.Sprintf(
+		`SELECT id, name, package, COALESCE(version,'latest'),
+		        COALESCE(description,''), COALESCE(repo_url,''),
+		        COALESCE(stars,0), COALESCE(build_status,'unknown'),
+		        COALESCE(build_flags,'{}'), COALESCE(build_error,'')
+		 FROM binaries
+		 WHERE build_status IN (%s)
+		 ORDER BY stars DESC
+		 LIMIT ?`,
+		strings.Join(placeholders, ","),
+	)
+
+	rows, err := conn.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanBinaries(rows)
+}
+
+// UpdateBuildResult updates the build status for a binary after verification.
+func UpdateBuildResult(conn *sql.DB, id int, status string, flags string, buildErr string) error {
+	_, err := conn.Exec(
+		`UPDATE binaries SET
+			build_status = ?,
+			build_flags = ?,
+			build_error = ?,
+			last_verified = datetime('now')
+		 WHERE id = ?`,
+		status, flags, buildErr, id,
+	)
+	return err
 }
 
 // Search finds binaries matching a query string.

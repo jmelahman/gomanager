@@ -10,6 +10,11 @@ on:
         description: "Number of packages to verify per run"
         required: false
         default: "50"
+      reverify:
+        description: "Also re-verify previously failed packages"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -26,68 +31,11 @@ jobs:
 
       - name: Verify builds
         run: |
-          BATCH_SIZE="${{ github.event.inputs.batch_size || '50' }}"
-
-          # Query packages that need verification
-          PACKAGES=$(sqlite3 database.db \
-            "SELECT id, package, version, build_flags FROM binaries
-             WHERE build_status IN ('unknown', 'pending')
-             ORDER BY stars DESC
-             LIMIT ${BATCH_SIZE};")
-
-          if [ -z "$PACKAGES" ]; then
-            echo "No packages to verify."
-            exit 0
+          ARGS="--database ./database.db -n ${{ github.event.inputs.batch_size || '50' }}"
+          if [ "${{ github.event.inputs.reverify }}" = "true" ]; then
+            ARGS="$ARGS --reverify"
           fi
-
-          TMPDIR=$(mktemp -d)
-          trap "rm -rf $TMPDIR" EXIT
-
-          echo "$PACKAGES" | while IFS='|' read -r id pkg version flags; do
-            INSTALL_PATH="${pkg}@${version}"
-            if [ "$version" = "latest" ] || [ -z "$version" ]; then
-              INSTALL_PATH="${pkg}@latest"
-            fi
-
-            echo "=== Verifying: $INSTALL_PATH ==="
-
-            # Parse build flags from JSON
-            ENV_FLAGS=""
-            if echo "$flags" | grep -q "CGO_ENABLED"; then
-              CGO_VAL=$(echo "$flags" | python3 -c "import sys,json; print(json.load(sys.stdin).get('CGO_ENABLED',''))" 2>/dev/null)
-              if [ -n "$CGO_VAL" ]; then
-                ENV_FLAGS="CGO_ENABLED=$CGO_VAL"
-              fi
-            fi
-
-            # Attempt go install
-            BUILD_ERROR=""
-            if env $ENV_FLAGS GOBIN="$TMPDIR/bin" go install "$INSTALL_PATH" 2>"$TMPDIR/stderr.txt"; then
-              echo "  SUCCESS"
-              sqlite3 database.db \
-                "UPDATE binaries SET build_status='confirmed', build_error=NULL, build_flags='$(echo "$flags" | sed "s/'/''/g")', last_verified=datetime('now') WHERE id=$id;"
-            else
-              BUILD_ERROR=$(cat "$TMPDIR/stderr.txt" | head -5 | tr '\n' ' ' | sed "s/'/''/g")
-
-              # Retry with CGO_ENABLED=0 if not already set
-              if [ -z "$ENV_FLAGS" ]; then
-                echo "  Retrying with CGO_ENABLED=0..."
-                if CGO_ENABLED=0 GOBIN="$TMPDIR/bin" go install "$INSTALL_PATH" 2>/dev/null; then
-                  echo "  SUCCESS (CGO_ENABLED=0)"
-                  sqlite3 database.db \
-                    "UPDATE binaries SET build_status='confirmed', build_error=NULL, build_flags='{\"CGO_ENABLED\":\"0\"}', last_verified=datetime('now') WHERE id=$id;"
-                  continue
-                fi
-              fi
-
-              echo "  FAILED: $BUILD_ERROR"
-              sqlite3 database.db \
-                "UPDATE binaries SET build_status='failed', build_error='$BUILD_ERROR', last_verified=datetime('now') WHERE id=$id;"
-            fi
-
-            # Clean up between installs
-            rm -rf "$TMPDIR/bin" "$TMPDIR/stderr.txt"
-          done
+          go run ./cmd/gomanager verify $ARGS
 
       - name: Commit verification results
         run: |
@@ -96,4 +44,3 @@ jobs:
           git add database.db
           git diff --cached --quiet || git commit -m "chore: update build verification results [skip ci]"
           git push
-

@@ -35,7 +35,7 @@ MAX_PAGES_PER_QUERY = 3
 RESULTS_PER_PAGE = 100
 
 # Rate limit safety margin
-RATE_LIMIT_BUFFER = 50
+RATE_LIMIT_BUFFER = 10
 
 
 def get_headers() -> dict[str, str]:
