@@ -7,6 +7,7 @@
 # ///
 from __future__ import annotations
 
+import base64
 import json
 import os
 import sqlite3
@@ -170,6 +171,28 @@ def find_cli_entrypoints(
     return entrypoints
 
 
+def get_module_path(owner: str, repo: str, headers: dict[str, str]) -> str | None:
+    """Fetch go.mod and extract the module path.
+
+    This is critical for v2+ modules where the module path includes a major
+    version suffix (e.g. github.com/mikefarah/yq/v4).  Without this, we'd
+    construct the wrong install path.
+    """
+    url = f"https://api.github.com/repos/{owner}/{repo}/contents/go.mod"
+    r = api_get(url, headers)
+    if r.status_code != 200:
+        return None
+    try:
+        content = base64.b64decode(r.json()["content"]).decode("utf-8")
+    except (KeyError, Exception):
+        return None
+    for line in content.split("\n"):
+        line = line.strip()
+        if line.startswith("module "):
+            return line.split(None, 1)[1].strip()
+    return None
+
+
 def get_latest_release(owner: str, repo: str, headers: dict[str, str]) -> str:
     url = f"https://api.github.com/repos/{owner}/{repo}/releases/latest"
     r = api_get(url, headers)
@@ -306,11 +329,17 @@ def main() -> int:
         entrypoints = find_cli_entrypoints(owner, repo_name, repo_name, headers)
         if entrypoints:
             version = get_latest_release(owner, repo_name, headers)
+
+            # Resolve the actual module path from go.mod (handles v2+ modules)
+            module_path = get_module_path(owner, repo_name, headers)
+            if module_path is None:
+                module_path = f"github.com/{owner}/{repo_name}"
+
             for binary_name, package_suffix, is_primary in entrypoints:
                 if package_suffix:
-                    package_path = f"github.com/{owner}/{repo_name}/{package_suffix}"
+                    package_path = f"{module_path}/{package_suffix}"
                 else:
-                    package_path = f"github.com/{owner}/{repo_name}"
+                    package_path = module_path
 
                 if package_path not in existing_packages:
                     upsert_binary(

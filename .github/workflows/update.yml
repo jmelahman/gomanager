@@ -36,6 +36,12 @@ jobs:
             --database ./database.db \
             -n ${{ github.event.inputs.batch_size || '100' }}
 
+      - name: Probe for root-level installable packages
+        run: |
+          go run ./cmd/gomanager probe-roots \
+            --database ./database.db \
+            -n 50
+
       - name: Re-verify updated packages
         run: |
           go run ./cmd/gomanager verify \

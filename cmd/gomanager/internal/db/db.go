@@ -233,6 +233,68 @@ func GetStaleConfirmed(conn *sql.DB, limit int) ([]Binary, error) {
 	return scanBinaries(rows)
 }
 
+// PackageExists checks if a package path already exists in the database.
+func PackageExists(conn *sql.DB, pkg string) (bool, error) {
+	var count int
+	err := conn.QueryRow("SELECT COUNT(*) FROM binaries WHERE package = ?", pkg).Scan(&count)
+	return count > 0, err
+}
+
+// GetReposWithoutRoot returns repos that have cmd/ entries but no root-level entry.
+// Returns a list of binaries representing one entry per repo (to get version/metadata).
+func GetReposWithoutRoot(conn *sql.DB, limit int) ([]Binary, error) {
+	// Find repos where we have cmd/ subpackages but no root package.
+	// The root package is "github.com/owner/repo" (exactly 3 path segments).
+	// cmd/ packages are "github.com/owner/repo/cmd/..." (more than 3 segments).
+	rows, err := conn.Query(
+		fmt.Sprintf(`SELECT %s FROM binaries b1
+		 WHERE package LIKE '%%/cmd/%%'
+		   AND NOT EXISTS (
+		     SELECT 1 FROM binaries b2
+		     WHERE b2.package = SUBSTR(b1.package, 1, INSTR(SUBSTR(b1.package, 12), '/') + 10)
+		   )
+		 GROUP BY SUBSTR(package, 1, INSTR(SUBSTR(package, 12), '/') + 10)
+		 ORDER BY stars DESC
+		 LIMIT ?`, selectCols),
+		limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanBinaries(rows)
+}
+
+// InsertBinary inserts a new binary entry into the database.
+func InsertBinary(conn *sql.DB, name, pkg, version, description, repoURL string, stars int, isPrimary bool, buildStatus, buildFlags string) error {
+	primary := 0
+	if isPrimary {
+		primary = 1
+	}
+	_, err := conn.Exec(
+		`INSERT OR IGNORE INTO binaries (name, package, version, description, repo_url, stars, is_primary, build_status, build_flags, last_verified)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+		name, pkg, version, description, repoURL, stars, primary, buildStatus, buildFlags,
+	)
+	return err
+}
+
+// UpdatePackagePath updates the package path for a binary.
+// Used to fix v2+ module paths discovered from go.mod.
+func UpdatePackagePath(conn *sql.DB, id int, newPkg string) error {
+	_, err := conn.Exec(
+		`UPDATE binaries SET package = ?, updated_at = datetime('now') WHERE id = ?`,
+		newPkg, id,
+	)
+	return err
+}
+
+// DeleteBinary removes a binary entry by ID.
+func DeleteBinary(conn *sql.DB, id int) error {
+	_, err := conn.Exec(`DELETE FROM binaries WHERE id = ?`, id)
+	return err
+}
+
 // InstallCommand returns the full install command string for a binary,
 // including any required environment flags.
 func (b *Binary) InstallCommand() string {
