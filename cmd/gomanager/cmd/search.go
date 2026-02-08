@@ -5,7 +5,7 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/jamison/gomanager/cmd/gomanager/internal/db"
+	"github.com/jmelahman/gomanager/cmd/gomanager/internal/db"
 	"github.com/spf13/cobra"
 )
 

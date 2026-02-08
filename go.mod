@@ -1,4 +1,4 @@
-module github.com/jamison/gomanager
+module github.com/jmelahman/gomanager
 
 go 1.25.5
 

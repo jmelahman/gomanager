@@ -7,7 +7,7 @@ GoManager automatically scans GitHub for Go CLI repositories, verifies they buil
 ## Install the CLI
 
 ```bash
-go install github.com/jamison/gomanager/cmd/gomanager@latest
+go install github.com/jmelahman/gomanager/cmd/gomanager@latest
 ```
 
 ## Usage

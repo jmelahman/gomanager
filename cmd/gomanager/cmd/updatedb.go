@@ -6,13 +6,13 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/jamison/gomanager/cmd/gomanager/internal/db"
+	"github.com/jmelahman/gomanager/cmd/gomanager/internal/db"
 	"github.com/spf13/cobra"
 )
 
 // Default URL where the database is hosted (GitHub Pages or raw content).
 // Override with --url flag.
-var dbURL = "https://raw.githubusercontent.com/jamison/gomanager/main/database.db"
+var dbURL = "https://raw.githubusercontent.com/jmelahman/gomanager/main/database.db"
 
 func init() {
 	updateDBCmd.Flags().StringVar(&dbURL, "url", dbURL, "URL to download database.db from")

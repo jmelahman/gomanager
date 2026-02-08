@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/jamison/gomanager/cmd/gomanager/cmd"
+	"github.com/jmelahman/gomanager/cmd/gomanager/cmd"
 )
 
 func main() {

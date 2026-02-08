@@ -6,8 +6,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/jamison/gomanager/cmd/gomanager/internal/db"
-	"github.com/jamison/gomanager/cmd/gomanager/internal/state"
+	"github.com/jmelahman/gomanager/cmd/gomanager/internal/db"
+	"github.com/jmelahman/gomanager/cmd/gomanager/internal/state"
 	"github.com/spf13/cobra"
 )
 
