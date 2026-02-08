@@ -11,34 +11,34 @@
       --bg-header: #fff;
       --bg-panel: #fff;
       --bg-input: #fff;
-      --bg-hover: #f0f0f0;
-      --bg-btn: #eee;
-      --bg-btn-hover: #ddd;
-      --text: #333;
-      --text-muted: #666;
-      --text-heading: #222;
+      --bg-hover: #eaeaea;
+      --bg-btn: #e4e4e4;
+      --bg-btn-hover: #d0d0d0;
+      --text: #1a1a1a;
+      --text-muted: #505050;
+      --text-heading: #111;
       --link: #07b;
       --border: #ddd;
       --border-row: #eee;
       --border-input: #ccc;
-      --confirmed: #2a7a2a;
-      --failed: #c44;
-      --regressed: #c87a20;
-      --unknown: #999;
-      --flags: #a55;
-      --cmd: #555;
-      --copy-bg: #eee;
-      --copy-border: #ccc;
-      --copy-text: #666;
-      --copy-hover-bg: #ddd;
-      --copy-hover-text: #333;
+      --confirmed: #1a6e1a;
+      --failed: #b52020;
+      --regressed: #a86000;
+      --unknown: #707070;
+      --flags: #8b2252;
+      --cmd: #333;
+      --copy-bg: #e4e4e4;
+      --copy-border: #aaa;
+      --copy-text: #505050;
+      --copy-hover-bg: #d0d0d0;
+      --copy-hover-text: #111;
       --arrow: #07b;
-      --pagination-bold: #222;
-      --save-bg: #2a7a2a;
+      --pagination-bold: #111;
+      --save-bg: #1a6e1a;
       --edit-highlight: #fffbe6;
-      --edit-border: #e8c547;
-      --primary-icon: #999;
-      --primary-icon-active: #e8c547;
+      --edit-border: #d4a800;
+      --primary-icon: #888;
+      --primary-icon-active: #d4a800;
     }
     /* Dark mode */
     html.dark {
@@ -46,33 +46,33 @@
       --bg-header: #222;
       --bg-panel: #222;
       --bg-input: #1b1d1e;
-      --bg-hover: #252729;
-      --bg-btn: #333;
-      --bg-btn-hover: #444;
-      --text: #ccc;
-      --text-muted: #999;
-      --text-heading: #eee;
+      --bg-hover: #2e3133;
+      --bg-btn: #383838;
+      --bg-btn-hover: #4a4a4a;
+      --text: #ddd;
+      --text-muted: #aaa;
+      --text-heading: #f0f0f0;
       --link: #07b;
       --border: #333;
       --border-row: #2a2c2d;
       --border-input: #444;
-      --confirmed: #6a2;
-      --failed: #c44;
+      --confirmed: #5cb85c;
+      --failed: #e05050;
       --regressed: #e8a030;
-      --unknown: #666;
-      --flags: #b87;
-      --cmd: #aaa;
-      --copy-bg: #333;
+      --unknown: #888;
+      --flags: #d8a0b0;
+      --cmd: #ccc;
+      --copy-bg: #383838;
       --copy-border: #555;
-      --copy-text: #888;
-      --copy-hover-bg: #444;
-      --copy-hover-text: #eee;
+      --copy-text: #aaa;
+      --copy-hover-bg: #4a4a4a;
+      --copy-hover-text: #f0f0f0;
       --arrow: #07b;
-      --pagination-bold: #eee;
+      --pagination-bold: #f0f0f0;
       --save-bg: #2a7a2a;
       --edit-highlight: #3a3520;
       --edit-border: #8a7520;
-      --primary-icon: #555;
+      --primary-icon: #666;
       --primary-icon-active: #e8c547;
     }
 
@@ -111,7 +111,9 @@
       font-weight: 700;
       color: var(--text-heading);
     }
-    .site-header h1 span { color: var(--link); }
+    .site-header h1 .site-title { color: var(--text-heading); text-decoration: none; }
+    .site-header h1 .site-title:hover { text-decoration: none; opacity: 0.8; }
+    .site-header h1 .site-title span { color: var(--link); }
     .header-right {
       display: flex;
       align-items: center;
@@ -383,7 +385,7 @@
   <div class="site-header">
     <div class="container">
       <div>
-        <h1>Go<span>Manager</span></h1>
+        <h1><a href="https://gomanager.dev" class="site-title">Go<span>Manager</span></a></h1>
       </div>
       <div class="header-right">
         <span class="subtitle">Go binary repository</span>
