@@ -396,8 +396,24 @@ func (b *Binary) InstallCommand() string {
 	return cmd
 }
 
+// allowedBuildEnv is the set of environment variable names that may be set
+// from the database build_flags field. Anything outside this list is ignored
+// to prevent a compromised database from injecting dangerous variables like
+// LD_PRELOAD or PATH.
+var allowedBuildEnv = map[string]bool{
+	"CGO_ENABLED": true,
+	"GOOS":        true,
+	"GOARCH":      true,
+	"GOARM":       true,
+	"CC":          true,
+	"CXX":         true,
+	"CGO_CFLAGS":  true,
+	"CGO_LDFLAGS": true,
+}
+
 // EnvFlags returns the environment variable prefix (e.g. "CGO_ENABLED=0")
-// parsed from the BuildFlags JSON field.
+// parsed from the BuildFlags JSON field. Only allowlisted variable names
+// are included; unknown keys are silently dropped.
 func (b *Binary) EnvFlags() string {
 	if b.BuildFlags == "" || b.BuildFlags == "{}" {
 		return ""
@@ -417,6 +433,9 @@ func (b *Binary) EnvFlags() string {
 		}
 		key := strings.Trim(kv[0], `"`)
 		val := strings.Trim(kv[1], `"`)
+		if !allowedBuildEnv[key] {
+			continue
+		}
 		parts = append(parts, key+"="+val)
 	}
 	return strings.Join(parts, " ")

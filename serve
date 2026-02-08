@@ -6,7 +6,7 @@ while ss -tlnp 2>/dev/null | grep -q ":${PORT} " || ss -tln 2>/dev/null | grep -
   PORT=$((PORT + 1))
 done
 
-python -m http.server "$PORT" &
+python -m http.server "$PORT" --bind 127.0.0.1 &
 # shellcheck disable=SC2064 # We want this to expand immediately.
 trap "kill -9 $!" EXIT
 xdg-open "http://localhost:${PORT}"

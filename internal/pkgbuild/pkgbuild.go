@@ -2,12 +2,19 @@ package pkgbuild
 
 import (
 	"fmt"
+	"io"
+	"regexp"
 	"strings"
 	"text/template"
-	"io"
 
 	"github.com/jmelahman/gomanager/internal/db"
 )
+
+// safeName matches valid PKGBUILD pkgname values (alphanumerics, hyphens, dots, underscores).
+var safeName = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
+
+// safePackage matches valid Go module paths (alphanumerics, dots, slashes, hyphens, underscores).
+var safePackage = regexp.MustCompile(`^[a-zA-Z0-9./_-]+$`)
 
 const pkgbuildTemplate = `# Maintainer: gomanager <gomanager@generated>
 pkgname={{.PkgName}}
@@ -56,6 +63,14 @@ func Generate(w io.Writer, b *db.Binary) error {
 	}
 	// Strip leading 'v' from version for PKGBUILD convention
 	pkgVer := strings.TrimPrefix(version, "v")
+
+	// Validate fields that are interpolated into shell context
+	if !safeName.MatchString(b.Name) {
+		return fmt.Errorf("unsafe package name %q for PKGBUILD generation", b.Name)
+	}
+	if !safePackage.MatchString(b.Package) {
+		return fmt.Errorf("unsafe package path %q for PKGBUILD generation", b.Package)
+	}
 
 	desc := b.Description
 	// Escape single quotes in description
