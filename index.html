@@ -302,6 +302,22 @@
     .primary-toggle { display: none; }
     .edit-mode .primary-toggle { display: inline; }
 
+    /* Delete button in edit mode */
+    .delete-btn {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--failed);
+      cursor: pointer;
+      font-size: 13px;
+      padding: 0 4px 0 0;
+      vertical-align: middle;
+      opacity: 0.5;
+      line-height: 1;
+    }
+    .delete-btn:hover { opacity: 1; }
+    .edit-mode .delete-btn { display: inline; }
+
     /* Inline edit input */
     .inline-edit {
       background: var(--bg-input);
@@ -566,6 +582,15 @@
       renderAll();
     }
 
+    // Delete entry
+    function deleteEntry(id, name) {
+      if (!confirm(`Delete "${name}" from the database?`)) return;
+      db.run("DELETE FROM binaries WHERE id = ?", [id]);
+      allRows = allRows.filter(r => r.id !== id);
+      recordChange(id, "_deleted", true);
+      renderAll();
+    }
+
     // Primary toggle
     function togglePrimary(id, current) {
       const next = current ? 0 : 1;
@@ -759,8 +784,9 @@
 
         html += "<tr>";
 
-        // Name + primary toggle
+        // Name + primary toggle + delete
         html += `<td class="name-cell col-name">`;
+        html += `<button class="delete-btn" onclick="deleteEntry(${r.id},'${escAttr(r.name)}')" title="Delete entry">✕</button>`;
         html += `<a href="${r.repo_url || "#"}" target="_blank" rel="noopener">${esc(r.name)}</a>`;
         html += `<span class="primary-toggle" style="color:${primaryColor}" onclick="togglePrimary(${r.id},${r.is_primary})" title="${r.is_primary ? "Primary (click to unmark)" : "Not primary (click to mark)"}">${primaryIcon}</span>`;
         html += `</td>`;
