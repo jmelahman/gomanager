@@ -3,13 +3,28 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"os/exec"
+	osexec "os/exec"
 	"strings"
 
 	"github.com/jmelahman/gomanager/internal/db"
 	"github.com/jmelahman/gomanager/internal/state"
 	"github.com/spf13/cobra"
 )
+
+// dangerousNames are binary names that could shadow critical system tools
+// if placed on PATH (e.g. in $HOME/go/bin). Installing a package with one
+// of these names could enable a chained attack where a later go install
+// invokes the malicious binary instead of the real tool.
+var dangerousNames = map[string]bool{
+	"cc": true, "gcc": true, "clang": true, "c++": true, "g++": true,
+	"ld": true, "as": true, "ar": true, "nm": true,
+	"sh": true, "bash": true, "zsh": true, "dash": true,
+	"git": true, "ssh": true, "scp": true, "curl": true, "wget": true,
+	"make": true, "cmake": true, "pkg-config": true,
+	"python": true, "python3": true, "perl": true, "ruby": true,
+	"go": true, "gofmt": true,
+	"env": true, "sudo": true, "su": true, "xargs": true,
+}
 
 func init() {
 	rootCmd.AddCommand(installCmd)
@@ -32,6 +47,18 @@ var installCmd = &cobra.Command{
 		b, err := db.GetByName(conn, args[0])
 		if err != nil {
 			return err
+		}
+
+		if dangerousNames[b.Name] {
+			fmt.Printf("Warning: %q shadows a common system tool.\n", b.Name)
+			fmt.Printf("  If $HOME/go/bin is on your PATH, this could intercept calls\n")
+			fmt.Printf("  to the real %q by other tools (including go install).\n", b.Name)
+			fmt.Print("Continue anyway? [y/N] ")
+			var answer string
+			fmt.Scanln(&answer)
+			if strings.ToLower(answer) != "y" {
+				return nil
+			}
 		}
 
 		if b.BuildStatus == "failed" {
@@ -59,7 +86,7 @@ func runGoInstall(b *db.Binary) error {
 	}
 	pkg := fmt.Sprintf("%s@%s", b.Package, version)
 
-	goCmd := exec.Command("go", "install", pkg)
+	goCmd := osexec.Command("go", "install", pkg)
 	goCmd.Stdout = os.Stdout
 	goCmd.Stderr = os.Stderr
 
