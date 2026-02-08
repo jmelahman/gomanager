@@ -1,15 +1,10 @@
 package cmd
 
 import (
-	"bytes"
 	"database/sql"
-	"encoding/json"
 	"fmt"
-	"os"
-	"os/exec"
-	"strings"
 
-	"github.com/jmelahman/gomanager/cmd/gomanager/internal/db"
+	"github.com/jmelahman/gomanager/internal/db"
 	"github.com/spf13/cobra"
 )
 
@@ -135,63 +130,4 @@ This can be run locally or in CI.`,
 			confirmedCount, failedCount, regressedCount, len(binaries))
 		return nil
 	},
-}
-
-func tryGoInstall(installPath string, envFlags map[string]string) (ok bool, flags map[string]string, errMsg string) {
-	tmpDir, err := os.MkdirTemp("", "gomanager-verify-*")
-	if err != nil {
-		return false, envFlags, fmt.Sprintf("cannot create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	goCmd := exec.Command("go", "install", installPath)
-	goCmd.Env = append(os.Environ(), "GOBIN="+tmpDir)
-	for k, v := range envFlags {
-		goCmd.Env = append(goCmd.Env, k+"="+v)
-	}
-
-	var stderr bytes.Buffer
-	goCmd.Stderr = &stderr
-
-	if err := goCmd.Run(); err != nil {
-		lines := strings.Split(strings.TrimSpace(stderr.String()), "\n")
-		if len(lines) > 5 {
-			lines = lines[:5]
-		}
-		return false, envFlags, strings.Join(lines, " ")
-	}
-
-	return true, envFlags, ""
-}
-
-func parseEnvFlags(flagsJSON string) map[string]string {
-	if flagsJSON == "" || flagsJSON == "{}" {
-		return nil
-	}
-	var m map[string]string
-	if err := json.Unmarshal([]byte(flagsJSON), &m); err != nil {
-		return nil
-	}
-	if len(m) == 0 {
-		return nil
-	}
-	return m
-}
-
-func marshalFlags(flags map[string]string) string {
-	if len(flags) == 0 {
-		return "{}"
-	}
-	b, err := json.Marshal(flags)
-	if err != nil {
-		return "{}"
-	}
-	return string(b)
-}
-
-func truncate(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "..."
 }

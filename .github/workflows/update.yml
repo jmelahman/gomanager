@@ -32,26 +32,26 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          go run ./cmd/gomanager update-versions \
+          go run ./cmd/gomanager-admin update-versions \
             --database ./database.db \
             -n ${{ github.event.inputs.batch_size || '100' }}
 
       - name: Fix module paths (v2+ modules)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: go run ./cmd/gomanager fix-module-paths --database ./database.db
+        run: go run ./cmd/gomanager-admin fix-module-paths --database ./database.db
 
       - name: Probe for root-level installable packages
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          go run ./cmd/gomanager probe-roots \
+          go run ./cmd/gomanager-admin probe-roots \
             --database ./database.db \
             -n 50
 
       - name: Re-verify updated packages
         run: |
-          go run ./cmd/gomanager verify \
+          go run ./cmd/gomanager-admin verify \
             --database ./database.db \
             --recheck \
             -n ${{ github.event.inputs.verify_batch_size || '50' }}

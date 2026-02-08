@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/jmelahman/gomanager/cmd/gomanager/internal/db"
-	"github.com/jmelahman/gomanager/cmd/gomanager/internal/pkgbuild"
+	"github.com/jmelahman/gomanager/internal/db"
+	"github.com/jmelahman/gomanager/internal/pkgbuild"
 	"github.com/spf13/cobra"
 )
 

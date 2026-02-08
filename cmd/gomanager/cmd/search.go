@@ -5,7 +5,7 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/jmelahman/gomanager/cmd/gomanager/internal/db"
+	"github.com/jmelahman/gomanager/internal/db"
 	"github.com/spf13/cobra"
 )
 
@@ -18,6 +18,9 @@ var searchCmd = &cobra.Command{
 	Short: "Search for Go binaries in the database",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := ensureDB(); err != nil {
+			return err
+		}
 		conn, err := db.Open()
 		if err != nil {
 			return err

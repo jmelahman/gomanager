@@ -1,7 +1,8 @@
 version: 2
 
 builds:
-  - main: ./cmd/gomanager
+  - id: gomanager
+    main: ./cmd/gomanager
     binary: gomanager
     env:
       - CGO_ENABLED=0
@@ -14,6 +15,21 @@ builds:
       - arm64
     ldflags:
       - -s -w -X github.com/jmelahman/gomanager/cmd/gomanager/cmd.version={{.Version}}
+
+  - id: gomanager-admin
+    main: ./cmd/gomanager-admin
+    binary: gomanager-admin
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/jmelahman/gomanager/cmd/gomanager-admin/cmd.version={{.Version}}
 
 archives:
   - format: tar.gz

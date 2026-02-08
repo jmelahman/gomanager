@@ -6,7 +6,7 @@ import (
 	"text/template"
 	"io"
 
-	"github.com/jmelahman/gomanager/cmd/gomanager/internal/db"
+	"github.com/jmelahman/gomanager/internal/db"
 )
 
 const pkgbuildTemplate = `# Maintainer: gomanager <gomanager@generated>

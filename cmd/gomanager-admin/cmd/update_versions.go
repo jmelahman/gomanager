@@ -2,14 +2,12 @@ package cmd
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
-	"github.com/jmelahman/gomanager/cmd/gomanager/internal/db"
+	"github.com/jmelahman/gomanager/internal/db"
 	"github.com/spf13/cobra"
 )
 
@@ -129,8 +127,6 @@ packages that need re-verification and flag regressions.`,
 				updated++
 			}
 
-			// Basic rate limiting: 1 request per 100ms with authenticated token,
-			// sleep more without one
 			if token != "" {
 				time.Sleep(100 * time.Millisecond)
 			} else {
@@ -141,57 +137,4 @@ packages that need re-verification and flag regressions.`,
 		fmt.Printf("\nDone. Checked %d repos, %d updated, %d skipped (no releases).\n", checked, updated, skipped)
 		return nil
 	},
-}
-
-func parseGitHubOwnerRepo(pkg string) (owner, repo string, ok bool) {
-	if !strings.HasPrefix(pkg, "github.com/") {
-		return "", "", false
-	}
-	parts := strings.SplitN(strings.TrimPrefix(pkg, "github.com/"), "/", 3)
-	if len(parts) < 2 {
-		return "", "", false
-	}
-	return parts[0], parts[1], true
-}
-
-func fetchLatestRelease(client *http.Client, owner, repo, token string) (string, error) {
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", owner, repo)
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return "", err
-	}
-	if token != "" {
-		req.Header.Set("Authorization", "token "+token)
-	}
-	req.Header.Set("Accept", "application/vnd.github.v3+json")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	// Check for rate limiting
-	if resp.StatusCode == 403 || resp.StatusCode == 429 {
-		retryAfter := resp.Header.Get("Retry-After")
-		if retryAfter != "" {
-			fmt.Printf("  Rate limited, waiting %ss...\n", retryAfter)
-		} else {
-			fmt.Println("  Rate limited, waiting 60s...")
-		}
-		time.Sleep(60 * time.Second)
-		return "", fmt.Errorf("rate limited")
-	}
-
-	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("status %d", resp.StatusCode)
-	}
-
-	var release struct {
-		TagName string `json:"tag_name"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
-		return "", err
-	}
-	return release.TagName, nil
 }

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jmelahman/gomanager/cmd/gomanager/internal/db"
+	"github.com/jmelahman/gomanager/internal/db"
 	"github.com/spf13/cobra"
 )
 
@@ -55,7 +55,6 @@ shows a versioned path.`,
 			return fmt.Errorf("failed to load packages: %w", err)
 		}
 
-		// Group by owner/repo to avoid duplicate API calls
 		type repoGroup struct {
 			owner, repo string
 			binaries    []db.Binary
@@ -92,22 +91,17 @@ shows a versioned path.`,
 
 			expectedBase := "github.com/" + g.owner + "/" + g.repo
 			if modulePath == expectedBase {
-				// Module path matches repo path, no fix needed
 				continue
 			}
 
-			// The module has a versioned path (e.g. github.com/owner/repo/v4)
 			for _, b := range g.binaries {
-				// Check if this binary's package path needs correction
 				if strings.HasPrefix(b.Package, modulePath) {
-					continue // Already correct
+					continue
 				}
 
-				// Derive the correct path by replacing the base
 				suffix := strings.TrimPrefix(b.Package, expectedBase)
 				newPkg := modulePath + suffix
 
-				// Check if the corrected path already exists
 				exists, _ := db.PackageExists(conn, newPkg)
 				if exists {
 					fmt.Printf("  %s → %s (already exists, removing duplicate)\n", b.Package, newPkg)
@@ -126,7 +120,6 @@ shows a versioned path.`,
 						fmt.Printf("    Warning: failed to update: %v\n", err)
 						continue
 					}
-					// Reset build status since the path changed
 					if err := db.UpdateBuildResult(conn, b.ID, "unknown", b.BuildFlags, ""); err != nil {
 						fmt.Printf("    Warning: failed to reset build status: %v\n", err)
 					}
@@ -134,7 +127,6 @@ shows a versioned path.`,
 				fixed++
 			}
 
-			// Rate limiting
 			if token != "" {
 				time.Sleep(100 * time.Millisecond)
 			} else {

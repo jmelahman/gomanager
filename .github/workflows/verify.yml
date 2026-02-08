@@ -35,7 +35,7 @@ jobs:
           if [ "${{ github.event.inputs.reverify }}" = "true" ]; then
             ARGS="$ARGS --reverify"
           fi
-          go run ./cmd/gomanager verify $ARGS
+          go run ./cmd/gomanager-admin verify $ARGS
 
       - name: Commit verification results
         run: |

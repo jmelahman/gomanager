@@ -6,8 +6,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/jmelahman/gomanager/cmd/gomanager/internal/db"
-	"github.com/jmelahman/gomanager/cmd/gomanager/internal/state"
+	"github.com/jmelahman/gomanager/internal/db"
+	"github.com/jmelahman/gomanager/internal/state"
 	"github.com/spf13/cobra"
 )
 
@@ -20,6 +20,9 @@ var installCmd = &cobra.Command{
 	Short: "Install a Go binary by name",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := ensureDB(); err != nil {
+			return err
+		}
 		conn, err := db.Open()
 		if err != nil {
 			return err

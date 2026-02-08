@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/jmelahman/gomanager/cmd/gomanager/internal/db"
-	"github.com/jmelahman/gomanager/cmd/gomanager/internal/state"
+	"github.com/jmelahman/gomanager/internal/db"
+	"github.com/jmelahman/gomanager/internal/state"
 	"github.com/spf13/cobra"
 )
 
@@ -23,6 +23,9 @@ var upgradeCmd = &cobra.Command{
 			return fmt.Errorf("specify a binary name or use --all")
 		}
 
+		if err := ensureDB(); err != nil {
+			return err
+		}
 		conn, err := db.Open()
 		if err != nil {
 			return err

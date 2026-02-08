@@ -59,6 +59,92 @@ func OpenPath(path string) (*sql.DB, error) {
 	return conn, nil
 }
 
+// CreatePath creates (if needed) and opens a database at the given path.
+// Unlike OpenPath, this does not error if the file does not exist yet.
+func CreatePath(path string) (*sql.DB, error) {
+	conn, err := sql.Open("sqlite", path)
+	if err != nil {
+		return nil, fmt.Errorf("cannot open database: %w", err)
+	}
+	return conn, nil
+}
+
+// InitSchema creates the binaries table and indexes if they don't exist.
+func InitSchema(conn *sql.DB) error {
+	_, err := conn.Exec(`
+		CREATE TABLE IF NOT EXISTS binaries (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL,
+			package TEXT NOT NULL UNIQUE,
+			version TEXT,
+			description TEXT,
+			repo_url TEXT,
+			stars INTEGER DEFAULT 0,
+			is_primary INTEGER DEFAULT 1,
+			build_status TEXT DEFAULT 'unknown'
+				CHECK(build_status IN ('unknown','confirmed','failed','pending','regressed')),
+			build_flags TEXT DEFAULT '{}',
+			build_error TEXT,
+			last_verified TIMESTAMP,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)
+	`)
+	if err != nil {
+		return err
+	}
+	for _, idx := range []string{
+		"CREATE INDEX IF NOT EXISTS idx_package ON binaries(package)",
+		"CREATE INDEX IF NOT EXISTS idx_name ON binaries(name)",
+		"CREATE INDEX IF NOT EXISTS idx_build_status ON binaries(build_status)",
+		"CREATE INDEX IF NOT EXISTS idx_stars ON binaries(stars)",
+	} {
+		if _, err := conn.Exec(idx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// UpsertBinary inserts or updates a binary. On conflict (package), is_primary
+// is preserved so manual curation is not overwritten by the scanner.
+func UpsertBinary(conn *sql.DB, name, pkg, version, description, repoURL string, stars int, isPrimary bool) error {
+	primary := 0
+	if isPrimary {
+		primary = 1
+	}
+	_, err := conn.Exec(`
+		INSERT INTO binaries (name, package, version, description, repo_url, stars, is_primary)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(package) DO UPDATE SET
+			version = excluded.version,
+			description = excluded.description,
+			repo_url = excluded.repo_url,
+			stars = excluded.stars,
+			updated_at = CURRENT_TIMESTAMP
+	`, name, pkg, version, description, repoURL, stars, primary)
+	return err
+}
+
+// GetExistingPackages returns all package paths currently in the database.
+func GetExistingPackages(conn *sql.DB) (map[string]bool, error) {
+	rows, err := conn.Query("SELECT package FROM binaries")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string]bool)
+	for rows.Next() {
+		var pkg string
+		if err := rows.Scan(&pkg); err != nil {
+			return nil, err
+		}
+		result[pkg] = true
+	}
+	return result, rows.Err()
+}
+
 // selectCols is the standard column list for binary queries.
 const selectCols = `id, name, package, COALESCE(version,'latest'),
         COALESCE(description,''), COALESCE(repo_url,''),
