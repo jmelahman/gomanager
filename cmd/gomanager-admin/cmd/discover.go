@@ -179,21 +179,48 @@ candidates.`,
 		fmt.Fprintf(os.Stderr, "Found %d candidates (confirmed, primary, >%d stars, versioned)\n",
 			len(candidates), discoverMinStars)
 
-		// Collect all unique names
-		var names []string
-		nameSet := make(map[string]bool)
-		for _, b := range candidates {
-			lower := strings.ToLower(b.Name)
-			if !nameSet[lower] {
-				nameSet[lower] = true
-				names = append(names, lower)
+		// For each candidate, generate all name variants to check:
+		//   binary name, repo name, and -bin suffixes for both.
+		// We build a map from each variant back to the candidate so we can
+		// mark a candidate as "found" if any variant matches.
+		type candidateNames struct {
+			variants []string // all lowercase name variants
+		}
+		candidateVariants := make([]candidateNames, len(candidates))
+
+		// Collect all unique variant names to check
+		allVariants := make(map[string]bool)
+		for i, b := range candidates {
+			binName := strings.ToLower(b.Name)
+			_, repoName, ok := parseGitHubOwnerRepo(b.Package)
+			if !ok {
+				repoName = ""
 			}
+			repoName = strings.ToLower(repoName)
+
+			var variants []string
+			seen := make(map[string]bool)
+			for _, v := range []string{binName, repoName, binName + "-bin", repoName + "-bin"} {
+				if v == "" || v == "-bin" || seen[v] {
+					continue
+				}
+				seen[v] = true
+				variants = append(variants, v)
+				allVariants[v] = true
+			}
+			candidateVariants[i] = candidateNames{variants: variants}
+		}
+
+		// Deduplicate into a flat list for batch lookups
+		var names []string
+		for v := range allVariants {
+			names = append(names, v)
 		}
 
 		client := &http.Client{Timeout: 15 * time.Second}
 
 		// Check AUR (fast, batched)
-		fmt.Fprintf(os.Stderr, "Checking AUR for %d names...\n", len(names))
+		fmt.Fprintf(os.Stderr, "Checking AUR for %d name variants...\n", len(names))
 		aurExists := batchCheckAUR(client, names)
 		fmt.Fprintf(os.Stderr, "  Found %d in AUR\n", len(aurExists))
 
@@ -210,14 +237,19 @@ candidates.`,
 		officialExists := checkOfficialRepos(client, toCheckOfficial)
 		fmt.Fprintf(os.Stderr, "  Found %d in official repos\n", len(officialExists))
 
-		// Filter to packages not in AUR or official repos
+		// Filter to packages where none of the variants exist in AUR or official repos
 		var available []db.Binary
-		for _, b := range candidates {
-			lower := strings.ToLower(b.Name)
-			if aurExists[lower] || officialExists[lower] {
-				continue
+		for i, b := range candidates {
+			found := false
+			for _, v := range candidateVariants[i].variants {
+				if aurExists[v] || officialExists[v] {
+					found = true
+					break
+				}
 			}
-			available = append(available, b)
+			if !found {
+				available = append(available, b)
+			}
 		}
 
 		if discoverLimit > 0 && len(available) > discoverLimit {
