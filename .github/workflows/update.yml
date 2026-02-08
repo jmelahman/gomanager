@@ -36,7 +36,14 @@ jobs:
             --database ./database.db \
             -n ${{ github.event.inputs.batch_size || '100' }}
 
+      - name: Fix module paths (v2+ modules)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: go run ./cmd/gomanager fix-module-paths --database ./database.db
+
       - name: Probe for root-level installable packages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           go run ./cmd/gomanager probe-roots \
             --database ./database.db \
