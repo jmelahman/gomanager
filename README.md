@@ -24,7 +24,8 @@ go install github.com/jmelahman/gomanager/cmd/gomanager@latest
 
 ```
 gomanager search <query>             # Search by name, package, or description
-gomanager install <name>             # Install a binary with go install
+gomanager install <name>             # Install a binary by name (prompts if ambiguous)
+gomanager install <package-path>     # Install a binary by full package path
 gomanager list                       # List installed binaries
 gomanager upgrade <name>             # Upgrade a binary to the latest version
 gomanager upgrade --all              # Upgrade all installed binaries
@@ -48,6 +49,8 @@ gomanager-admin update-versions -d ./database.db     # Check for new releases
 gomanager-admin probe-roots -d ./database.db         # Discover root-level packages
 gomanager-admin fix-module-paths -d ./database.db    # Fix v2+ module paths
 gomanager-admin export pkgbuild <name>               # Generate an AUR PKGBUILD
+gomanager-admin discover --min-stars 50              # Find packages missing from Arch/AUR
+gomanager-admin discover -o ./pkgbuilds              # Generate PKGBUILDs for candidates
 ```
 
 ## How it works
@@ -73,6 +76,29 @@ Attempts `go install` on unverified packages and updates their build status. If 
 | `regressed` | Build failed (previously confirmed)  |
 | `unknown`   | Not yet tested                       |
 | `pending`   | Queued for verification              |
+
+### AUR discovery (`gomanager-admin discover`)
+
+Finds confirmed Go packages that don't yet have an Arch Linux package. Checks both the AUR (via the RPC v5 API) and official repos to filter out packages that are already available. Use it to discover candidates for new AUR PKGBUILDs:
+
+```bash
+# List candidates with >50 stars not in Arch/AUR
+gomanager-admin discover --min-stars 50
+
+# Generate PKGBUILDs and nvchecker entries
+gomanager-admin discover --min-stars 50 \
+  -o ./pkgbuilds \
+  --nvchecker ./pkgbuilds/nvchecker.toml
+```
+
+### PKGBUILD export (`gomanager-admin export pkgbuild`)
+
+Generates an Arch Linux PKGBUILD for any package in the database. The generated PKGBUILD clones the source via git, builds with `go build`, and installs the binary, license, and readme. It queries the GitHub API to detect the exact LICENSE and README filenames in each repository.
+
+```bash
+gomanager-admin export pkgbuild dive           # Print to stdout
+gomanager-admin export pkgbuild dive -o ./out  # Write to ./out/dive/PKGBUILD
+```
 
 ### Web frontend (`index.html`)
 
