@@ -15,10 +15,11 @@ import (
 )
 
 var (
-	discoverMinStars int
-	discoverOutput   string
+	discoverMinStars  int
+	discoverOutput    string
 	discoverNvchecker string
-	discoverLimit    int
+	discoverLimit     int
+	discoverMaxAge    int
 )
 
 func init() {
@@ -26,6 +27,7 @@ func init() {
 	discoverCmd.Flags().StringVarP(&discoverOutput, "output", "o", "", "Directory to write PKGBUILDs to")
 	discoverCmd.Flags().StringVar(&discoverNvchecker, "nvchecker", "", "Path to nvchecker.toml to append entries to")
 	discoverCmd.Flags().IntVarP(&discoverLimit, "limit", "n", 0, "Maximum number of candidates to output (0 = all)")
+	discoverCmd.Flags().IntVar(&discoverMaxAge, "max-age", 3, "Skip repos with no activity in this many years (0 = no filter)")
 	rootCmd.AddCommand(discoverCmd)
 }
 
@@ -137,6 +139,50 @@ func checkOfficialRepos(client *http.Client, names []string) map[string]bool {
 	return exists
 }
 
+// repoStatus holds freshness metadata for a GitHub repository.
+type repoStatus struct {
+	Archived bool
+	PushedAt time.Time
+}
+
+// fetchRepoStatus fetches repo metadata from the GitHub API to check if
+// the repo is archived or stale. Returns nil on API failure (caller should
+// keep the candidate in that case).
+func fetchRepoStatus(client *http.Client, owner, repo, token string) *repoStatus {
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s", owner, repo)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "token "+token)
+	}
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil
+	}
+
+	var data struct {
+		Archived bool      `json:"archived"`
+		PushedAt time.Time `json:"pushed_at"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return nil
+	}
+
+	return &repoStatus{
+		Archived: data.Archived,
+		PushedAt: data.PushedAt,
+	}
+}
+
 var discoverCmd = &cobra.Command{
 	Use:   "discover",
 	Short: "Find confirmed Go packages not yet in Arch Linux repos or AUR",
@@ -238,7 +284,7 @@ candidates.`,
 		fmt.Fprintf(os.Stderr, "  Found %d in official repos\n", len(officialExists))
 
 		// Filter to packages where none of the variants exist in AUR or official repos
-		var available []db.Binary
+		var afterArch []db.Binary
 		for i, b := range candidates {
 			found := false
 			for _, v := range candidateVariants[i].variants {
@@ -248,8 +294,69 @@ candidates.`,
 				}
 			}
 			if !found {
-				available = append(available, b)
+				afterArch = append(afterArch, b)
 			}
+		}
+
+		fmt.Fprintf(os.Stderr, "  %d not found in Arch/AUR\n", len(afterArch))
+
+		token := os.Getenv("GITHUB_TOKEN")
+
+		// Filter out archived and stale repositories via GitHub API
+		var available []db.Binary
+		if discoverMaxAge > 0 {
+			cutoff := time.Now().AddDate(-discoverMaxAge, 0, 0)
+			fmt.Fprintf(os.Stderr, "Checking GitHub for archived/stale repos (no activity since %s)...\n",
+				cutoff.Format("2006-01-02"))
+
+			// Group by owner/repo to avoid duplicate API calls for packages
+			// from the same repository
+			type repoKey struct{ owner, repo string }
+			repoCache := make(map[repoKey]*repoStatus)
+			archived, stale := 0, 0
+
+			for i, b := range afterArch {
+				owner, repo, ok := parseGitHubOwnerRepo(b.Package)
+				if !ok {
+					available = append(available, b)
+					continue
+				}
+
+				key := repoKey{owner, repo}
+				status, cached := repoCache[key]
+				if !cached {
+					status = fetchRepoStatus(client, owner, repo, token)
+					repoCache[key] = status
+					// Rate limit GitHub API
+					time.Sleep(100 * time.Millisecond)
+				}
+
+				if status == nil {
+					// API failed, keep the candidate
+					available = append(available, b)
+					continue
+				}
+
+				if status.Archived {
+					archived++
+					continue
+				}
+
+				if status.PushedAt.Before(cutoff) {
+					stale++
+					continue
+				}
+
+				available = append(available, b)
+
+				if (i+1)%50 == 0 {
+					fmt.Fprintf(os.Stderr, "  Checked %d/%d repos...\n", i+1, len(afterArch))
+				}
+			}
+
+			fmt.Fprintf(os.Stderr, "  Skipped %d archived, %d stale (>%d years)\n", archived, stale, discoverMaxAge)
+		} else {
+			available = afterArch
 		}
 
 		if discoverLimit > 0 && len(available) > discoverLimit {
@@ -257,8 +364,6 @@ candidates.`,
 		}
 
 		fmt.Fprintf(os.Stderr, "\n%d packages not yet in Arch Linux:\n\n", len(available))
-
-		token := os.Getenv("GITHUB_TOKEN")
 
 		// Print results
 		for _, b := range available {
