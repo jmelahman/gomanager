@@ -5,264 +5,268 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GoManager — Go Binary Repository</title>
   <style>
-    :root {
-      --bg: #ffffff;
-      --bg-secondary: #f7f8fa;
-      --text: #1a1a2e;
-      --text-muted: #6b7280;
-      --border: #e5e7eb;
-      --accent: #2563eb;
-      --accent-hover: #1d4ed8;
-      --confirmed: #16a34a;
-      --confirmed-bg: #dcfce7;
-      --failed: #dc2626;
-      --failed-bg: #fef2f2;
-      --unknown: #9ca3af;
-      --unknown-bg: #f3f4f6;
-      --shadow: 0 1px 3px rgba(0,0,0,0.08);
-    }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #0f172a;
-        --bg-secondary: #1e293b;
-        --text: #e2e8f0;
-        --text-muted: #94a3b8;
-        --border: #334155;
-        --accent: #3b82f6;
-        --accent-hover: #60a5fa;
-        --confirmed: #22c55e;
-        --confirmed-bg: #14532d;
-        --failed: #ef4444;
-        --failed-bg: #450a0a;
-        --unknown: #64748b;
-        --unknown-bg: #1e293b;
-        --shadow: 0 1px 3px rgba(0,0,0,0.3);
-      }
-    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.6;
+      font-family: sans-serif;
+      font-size: 13px;
+      background: #1b1d1e;
+      color: #ccc;
+      line-height: 1.5;
     }
+    a { color: #07b; text-decoration: none; }
+    a:hover { text-decoration: underline; }
     .container {
-      max-width: 1200px;
+      max-width: 1500px;
       margin: 0 auto;
-      padding: 2rem 1.5rem;
+      padding: 15px;
     }
-    header {
-      text-align: center;
-      margin-bottom: 2rem;
+
+    /* Header */
+    .site-header {
+      background: #222;
+      border-bottom: 1px solid #333;
+      padding: 10px 0;
+      margin-bottom: 15px;
     }
-    header h1 {
-      font-size: 2rem;
-      font-weight: 700;
-      margin-bottom: 0.25rem;
-    }
-    header p {
-      color: var(--text-muted);
-      font-size: 1.05rem;
-    }
-    .controls {
+    .site-header .container {
       display: flex;
-      gap: 1rem;
-      margin-bottom: 1.5rem;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 0;
+      padding-bottom: 0;
+    }
+    .site-header h1 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #eee;
+    }
+    .site-header h1 span { color: #07b; }
+    .site-header .subtitle {
+      color: #888;
+      font-size: 12px;
+    }
+
+    /* Search Criteria box */
+    .search-criteria {
+      background: #222;
+      border: 1px solid #333;
+      padding: 12px 15px;
+      margin-bottom: 15px;
+    }
+    .search-criteria h2 {
+      font-size: 14px;
+      color: #eee;
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+    .search-row {
+      display: flex;
+      gap: 15px;
+      align-items: flex-end;
       flex-wrap: wrap;
     }
-    .search-box {
-      flex: 1;
-      min-width: 200px;
-      padding: 0.65rem 1rem;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      background: var(--bg-secondary);
-      color: var(--text);
-      font-size: 0.95rem;
-      outline: none;
-      transition: border-color 0.15s;
+    .search-field { display: flex; flex-direction: column; gap: 3px; }
+    .search-field label { font-size: 11px; color: #999; }
+    .search-field input,
+    .search-field select {
+      background: #1b1d1e;
+      color: #ccc;
+      border: 1px solid #444;
+      padding: 4px 8px;
+      font-size: 13px;
+      font-family: inherit;
     }
-    .search-box:focus { border-color: var(--accent); }
-    .filter-btn {
-      padding: 0.65rem 1rem;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      background: var(--bg-secondary);
-      color: var(--text);
+    .search-field input { width: 260px; }
+    .search-field select { min-width: 100px; }
+    .search-field input:focus,
+    .search-field select:focus { border-color: #07b; outline: none; }
+    .search-btn {
+      background: #333;
+      color: #ccc;
+      border: 1px solid #444;
+      padding: 4px 16px;
+      font-size: 13px;
       cursor: pointer;
-      font-size: 0.85rem;
-      transition: background 0.15s, border-color 0.15s;
+      font-family: inherit;
     }
-    .filter-btn:hover { border-color: var(--accent); }
-    .filter-btn.active {
-      background: var(--accent);
-      color: #fff;
-      border-color: var(--accent);
-    }
+    .search-btn:hover { background: #444; }
     .toggle-label {
       display: flex;
       align-items: center;
-      gap: 0.4rem;
-      font-size: 0.85rem;
-      color: var(--text-muted);
+      gap: 4px;
+      font-size: 12px;
+      color: #999;
       cursor: pointer;
       user-select: none;
-      white-space: nowrap;
+      padding-bottom: 2px;
     }
     .toggle-label input { cursor: pointer; }
-    .stats {
+
+    /* Results info */
+    .results-info {
       display: flex;
-      gap: 1.5rem;
-      margin-bottom: 1.5rem;
-      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+      font-size: 12px;
+      color: #999;
     }
-    .stat-card {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 1rem 1.5rem;
-      flex: 1;
-      min-width: 120px;
-      text-align: center;
-    }
-    .stat-card .num {
-      font-size: 1.75rem;
-      font-weight: 700;
-      display: block;
-    }
-    .stat-card .label {
-      color: var(--text-muted);
-      font-size: 0.85rem;
-    }
+    .results-info .stats-inline span { margin-left: 10px; }
+    .results-info .confirmed-count { color: #6a2; }
+    .results-info .failed-count { color: #c44; }
+
+    /* Table */
     table {
       width: 100%;
       border-collapse: collapse;
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      overflow: hidden;
-      box-shadow: var(--shadow);
+      table-layout: fixed;
     }
-    thead { background: var(--bg); }
+    thead { background: #222; }
     th {
-      padding: 0.75rem 1rem;
+      padding: 6px 10px;
       text-align: left;
       font-weight: 600;
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      border-bottom: 2px solid var(--border);
+      font-size: 12px;
+      color: #aaa;
+      border-bottom: 1px solid #444;
       cursor: pointer;
       user-select: none;
       white-space: nowrap;
+      overflow: hidden;
     }
-    th:hover { color: var(--accent); }
-    th .sort-arrow { margin-left: 4px; opacity: 0.4; }
-    th.sorted .sort-arrow { opacity: 1; }
+    th:hover { color: #07b; }
+    th .arrow { font-size: 9px; margin-left: 3px; opacity: 0.4; }
+    th.sorted .arrow { opacity: 1; color: #07b; }
     td {
-      padding: 0.6rem 1rem;
-      border-bottom: 1px solid var(--border);
-      font-size: 0.9rem;
-      vertical-align: middle;
-    }
-    tr:last-child td { border-bottom: none; }
-    tr:hover td { background: var(--bg); }
-    .name-cell {
-      font-weight: 600;
-    }
-    .name-cell a {
-      color: var(--accent);
-      text-decoration: none;
-    }
-    .name-cell a:hover { text-decoration: underline; }
-    .desc-cell {
-      color: var(--text-muted);
-      max-width: 350px;
+      padding: 4px 10px;
+      border-bottom: 1px solid #2a2c2d;
+      font-size: 13px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      vertical-align: middle;
     }
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-    }
-    .badge-confirmed { background: var(--confirmed-bg); color: var(--confirmed); }
-    .badge-failed { background: var(--failed-bg); color: var(--failed); }
-    .badge-unknown { background: var(--unknown-bg); color: var(--unknown); }
-    .copy-btn {
-      background: none;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 3px 8px;
-      cursor: pointer;
-      color: var(--text-muted);
-      font-size: 0.8rem;
-      transition: all 0.15s;
-    }
-    .copy-btn:hover {
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-    .copy-btn.copied {
-      border-color: var(--confirmed);
-      color: var(--confirmed);
-    }
-    .install-cell {
-      font-family: "SF Mono", "Fira Code", monospace;
-      font-size: 0.8rem;
+    tr:hover td { background: #252729; }
+    /* Column widths */
+    .col-name { width: 13%; }
+    .col-version { width: 8%; }
+    .col-stars { width: 6%; text-align: right; }
+    .col-status { width: 7%; }
+    .col-desc { width: 30%; }
+    .col-install { width: 36%; }
+
+    td.stars-cell { text-align: right; font-variant-numeric: tabular-nums; }
+    td.name-cell a { color: #07b; }
+    td.desc-cell { color: #999; }
+
+    /* Status styles */
+    .status-confirmed { color: #6a2; }
+    .status-failed { color: #c44; }
+    .status-unknown { color: #666; }
+
+    /* Install column */
+    td.install-cell {
+      font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+      font-size: 12px;
       white-space: nowrap;
     }
-    .stars-cell { white-space: nowrap; }
-    .flags-cell {
-      font-family: "SF Mono", "Fira Code", monospace;
-      font-size: 0.78rem;
-      color: var(--text-muted);
+    td.install-cell .flags {
+      color: #b87;
+      margin-right: 2px;
     }
+    td.install-cell .cmd { color: #aaa; }
+    .copy-btn {
+      background: #333;
+      border: 1px solid #555;
+      color: #888;
+      padding: 1px 8px;
+      margin-right: 6px;
+      cursor: pointer;
+      font-size: 11px;
+      font-family: inherit;
+      vertical-align: middle;
+    }
+    .copy-btn:hover { background: #444; color: #eee; }
+    .copy-btn.copied { color: #6a2; border-color: #6a2; }
+
     .empty-state {
       text-align: center;
-      padding: 3rem;
-      color: var(--text-muted);
+      padding: 40px;
+      color: #666;
     }
     .loading {
       text-align: center;
-      padding: 4rem;
-      color: var(--text-muted);
+      padding: 60px;
+      color: #666;
     }
-    @media (max-width: 768px) {
-      .controls { flex-direction: column; }
-      .stats { flex-direction: column; }
-      table { font-size: 0.85rem; }
-      td, th { padding: 0.5rem; }
-      .desc-cell { display: none; }
+
+    @media (max-width: 900px) {
+      .search-row { flex-direction: column; }
+      .search-field input { width: 100%; }
+      .col-desc { display: none; }
+      .col-name { width: 18%; }
+      .col-version { width: 10%; }
+      .col-stars { width: 8%; }
+      .col-status { width: 10%; }
+      .col-install { width: 54%; }
     }
   </style>
 </head>
 
 <body>
+  <div class="site-header">
+    <div class="container">
+      <div>
+        <h1>Go<span>Manager</span></h1>
+      </div>
+      <div class="subtitle">Go binary repository</div>
+    </div>
+  </div>
+
   <div class="container">
-    <header>
-      <h1>GoManager</h1>
-      <p>Catalog of Go binaries installable via <code>go install</code></p>
-    </header>
-
-    <div class="stats" id="stats"></div>
-
-    <div class="controls">
-      <input type="text" class="search-box" id="search" placeholder="Search by name, package, or description..." />
-      <button class="filter-btn active" data-filter="all">All</button>
-      <button class="filter-btn" data-filter="confirmed">Confirmed</button>
-      <button class="filter-btn" data-filter="failed">Failed</button>
-      <button class="filter-btn" data-filter="unknown">Unknown</button>
-      <label class="toggle-label"><input type="checkbox" id="showAll" /> Show internal commands</label>
+    <div class="search-criteria">
+      <h2>Search Criteria</h2>
+      <div class="search-row">
+        <div class="search-field">
+          <label>Keywords</label>
+          <input type="text" id="search" placeholder="Search packages..." />
+        </div>
+        <div class="search-field">
+          <label>Status</label>
+          <select id="statusFilter">
+            <option value="all">All</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="failed">Failed</option>
+            <option value="unknown">Unknown</option>
+          </select>
+        </div>
+        <div class="search-field">
+          <label>Sort by</label>
+          <select id="sortSelect">
+            <option value="stars">Stars</option>
+            <option value="name">Name</option>
+            <option value="build_status">Status</option>
+            <option value="version">Version</option>
+          </select>
+        </div>
+        <div class="search-field">
+          <label>Per page</label>
+          <select id="perPage">
+            <option value="50">50</option>
+            <option value="100">100</option>
+            <option value="250">250</option>
+            <option value="0">All</option>
+          </select>
+        </div>
+        <label class="toggle-label">
+          <input type="checkbox" id="showAll" /> Show internal commands
+        </label>
+      </div>
     </div>
 
+    <div class="results-info" id="resultsInfo"></div>
     <div id="output"><div class="loading">Loading database...</div></div>
+    <div class="results-info" id="paginationBottom"></div>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
@@ -271,7 +275,7 @@
     let allRows = [];
     let sortCol = "stars";
     let sortDir = "desc";
-    let activeFilter = "all";
+    let currentPage = 1;
 
     async function init() {
       try {
@@ -306,32 +310,18 @@
           return obj;
         });
       }
-      renderStats();
-      renderTable();
-    }
-
-    function renderStats() {
-      const total = allRows.length;
-      const confirmed = allRows.filter(r => r.build_status === "confirmed").length;
-      const failed = allRows.filter(r => r.build_status === "failed").length;
-      const unknown = allRows.filter(r => r.build_status === "unknown" || r.build_status === "pending").length;
-      document.getElementById("stats").innerHTML = `
-        <div class="stat-card"><span class="num">${total}</span><span class="label">Total Packages</span></div>
-        <div class="stat-card"><span class="num" style="color:var(--confirmed)">${confirmed}</span><span class="label">Confirmed</span></div>
-        <div class="stat-card"><span class="num" style="color:var(--failed)">${failed}</span><span class="label">Failed</span></div>
-        <div class="stat-card"><span class="num">${unknown}</span><span class="label">Unknown</span></div>
-      `;
+      renderAll();
     }
 
     function getFilteredRows() {
       const query = document.getElementById("search").value.toLowerCase();
-      const showAll = document.getElementById("showAll").checked;
+      const showInternal = document.getElementById("showAll").checked;
+      const statusFilter = document.getElementById("statusFilter").value;
       return allRows.filter(r => {
-        // Hide non-primary (internal) packages unless toggled on
-        if (!showAll && !r.is_primary) return false;
-        if (activeFilter !== "all") {
-          if (activeFilter === "unknown" && r.build_status !== "unknown" && r.build_status !== "pending") return false;
-          if (activeFilter !== "unknown" && r.build_status !== activeFilter) return false;
+        if (!showInternal && !r.is_primary) return false;
+        if (statusFilter !== "all") {
+          if (statusFilter === "unknown" && r.build_status !== "unknown" && r.build_status !== "pending") return false;
+          if (statusFilter !== "unknown" && r.build_status !== statusFilter) return false;
         }
         if (query) {
           const hay = `${r.name} ${r.package} ${r.description || ""}`.toLowerCase();
@@ -355,53 +345,117 @@
       });
     }
 
-    function renderTable() {
-      const rows = sortRows(getFilteredRows());
-      if (!rows.length) {
+    function getPerPage() {
+      return parseInt(document.getElementById("perPage").value) || 0;
+    }
+
+    function renderAll() {
+      const filtered = sortRows(getFilteredRows());
+      const total = filtered.length;
+      const perPage = getPerPage();
+      const totalPages = perPage > 0 ? Math.ceil(total / perPage) : 1;
+      if (currentPage > totalPages) currentPage = totalPages || 1;
+
+      const start = perPage > 0 ? (currentPage - 1) * perPage : 0;
+      const pageRows = perPage > 0 ? filtered.slice(start, start + perPage) : filtered;
+
+      // Stats
+      const confirmed = filtered.filter(r => r.build_status === "confirmed").length;
+      const failed = filtered.filter(r => r.build_status === "failed").length;
+
+      const pageInfo = perPage > 0
+        ? `${total} packages found. Page ${currentPage} of ${totalPages}.`
+        : `${total} packages found.`;
+
+      document.getElementById("resultsInfo").innerHTML =
+        `<div>${pageInfo}</div>` +
+        `<div class="stats-inline">` +
+          `<span class="confirmed-count">${confirmed} confirmed</span>` +
+          `<span class="failed-count">${failed} failed</span>` +
+        `</div>`;
+
+      // Pagination
+      let paginationHtml = "";
+      if (perPage > 0 && totalPages > 1) {
+        paginationHtml = renderPagination(currentPage, totalPages);
+      }
+      document.getElementById("paginationBottom").innerHTML = paginationHtml;
+
+      // Table
+      if (!pageRows.length) {
         document.getElementById("output").innerHTML =
           `<div class="empty-state">No packages found.</div>`;
         return;
       }
 
       const columns = [
-        { key: "name", label: "Name" },
-        { key: "description", label: "Description" },
-        { key: "stars", label: "Stars" },
-        { key: "build_status", label: "Status" },
-        { key: "version", label: "Version" },
-        { key: "package", label: "Install" },
+        { key: "name", label: "Name", cls: "col-name" },
+        { key: "version", label: "Version", cls: "col-version" },
+        { key: "stars", label: "Stars", cls: "col-stars" },
+        { key: "build_status", label: "Status", cls: "col-status" },
+        { key: "description", label: "Description", cls: "col-desc" },
+        { key: "package", label: "Install", cls: "col-install", nosort: true },
       ];
 
       let html = "<table><thead><tr>";
       for (const col of columns) {
         const sorted = sortCol === col.key;
-        const arrow = sorted ? (sortDir === "asc" ? "&#9650;" : "&#9660;") : "&#9650;";
-        html += `<th class="${sorted ? "sorted" : ""}" data-col="${col.key}">${col.label}<span class="sort-arrow">${arrow}</span></th>`;
+        const arrow = sorted ? (sortDir === "asc" ? "&#9650;" : "&#9660;") : "";
+        const sortable = !col.nosort;
+        html += `<th class="${col.cls} ${sorted ? "sorted" : ""}" ${sortable ? `data-col="${col.key}"` : ""}>${col.label}${arrow ? `<span class="arrow">${arrow}</span>` : ""}</th>`;
       }
       html += "</tr></thead><tbody>";
 
-      for (const r of rows) {
-        const badgeClass = r.build_status === "confirmed" ? "badge-confirmed"
-          : r.build_status === "failed" ? "badge-failed" : "badge-unknown";
-        const statusLabel = r.build_status || "unknown";
-        const installCmd = `go install ${r.package}@${r.version || "latest"}`;
+      for (const r of pageRows) {
+        const statusCls = r.build_status === "confirmed" ? "status-confirmed"
+          : r.build_status === "failed" ? "status-failed" : "status-unknown";
         const flags = parseFlags(r.build_flags);
-        const flagStr = flags ? flags + " " : "";
-        const fullCmd = flagStr + installCmd;
+        const installPkg = `go install ${r.package}@${r.version || "latest"}`;
+        const fullCmd = flags ? flags + " " + installPkg : installPkg;
 
         html += "<tr>";
-        html += `<td class="name-cell"><a href="${r.repo_url || "#"}" target="_blank" rel="noopener">${esc(r.name)}</a></td>`;
-        html += `<td class="desc-cell" title="${esc(r.description || "")}">${esc(r.description || "—")}</td>`;
-        html += `<td class="stars-cell">${(r.stars || 0).toLocaleString()}</td>`;
-        html += `<td><span class="badge ${badgeClass}">${statusLabel}</span></td>`;
-        html += `<td>${esc(r.version || "latest")}</td>`;
-        html += `<td class="install-cell"><code>${esc(fullCmd)}</code> <button class="copy-btn" onclick="copyCmd(this, '${esc(fullCmd, true)}')" title="Copy install command">Copy</button></td>`;
+        html += `<td class="name-cell col-name"><a href="${r.repo_url || "#"}" target="_blank" rel="noopener">${esc(r.name)}</a></td>`;
+        html += `<td class="col-version">${esc(r.version || "latest")}</td>`;
+        html += `<td class="stars-cell col-stars">${(r.stars || 0).toLocaleString()}</td>`;
+        html += `<td class="col-status ${statusCls}">${r.build_status || "unknown"}</td>`;
+        html += `<td class="desc-cell col-desc" title="${esc(r.description || "")}">${esc(r.description || "")}</td>`;
+        html += `<td class="install-cell col-install">`;
+        html += `<button class="copy-btn" onclick="copyCmd(this,'${escAttr(fullCmd)}')">Copy</button> `;
+        if (flags) html += `<span class="flags">${esc(flags)}</span> `;
+        html += `<span class="cmd">${esc(installPkg)}</span>`;
+        html += `</td>`;
         html += "</tr>";
       }
 
       html += "</tbody></table>";
       document.getElementById("output").innerHTML = html;
     }
+
+    function renderPagination(current, total) {
+      let html = '<div style="margin-top:8px;font-size:12px;">';
+      const maxVisible = 7;
+      const pages = [];
+
+      pages.push(1);
+      let start = Math.max(2, current - 2);
+      let end = Math.min(total - 1, current + 2);
+      if (start > 2) pages.push("...");
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (end < total - 1) pages.push("...");
+      if (total > 1) pages.push(total);
+
+      if (current > 1) html += `<a href="#" onclick="goPage(${current-1});return false">Prev</a> `;
+      for (const p of pages) {
+        if (p === "...") { html += ".. "; continue; }
+        if (p === current) html += `<b style="color:#eee">${p}</b> `;
+        else html += `<a href="#" onclick="goPage(${p});return false">${p}</a> `;
+      }
+      if (current < total) html += `<a href="#" onclick="goPage(${current+1});return false">Next</a>`;
+      html += "</div>";
+      return html;
+    }
+
+    function goPage(n) { currentPage = n; renderAll(); window.scrollTo(0, 0); }
 
     function parseFlags(flagsJson) {
       if (!flagsJson || flagsJson === "{}") return "";
@@ -411,34 +465,33 @@
       } catch { return ""; }
     }
 
-    function esc(str, forAttr) {
+    function esc(str) {
       if (!str) return "";
       const div = document.createElement("div");
       div.textContent = str;
-      let result = div.innerHTML;
-      if (forAttr) result = result.replace(/'/g, "\\'");
-      return result;
+      return div.innerHTML;
+    }
+
+    function escAttr(str) {
+      return esc(str).replace(/'/g, "\\'");
     }
 
     function copyCmd(btn, cmd) {
       navigator.clipboard.writeText(cmd).then(() => {
         btn.textContent = "Copied!";
-        btn.classList.add("copied");
-        setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 1500);
+        setTimeout(() => { btn.textContent = "Copy"; }, 1200);
       });
     }
 
     // Event listeners
-    document.getElementById("search").addEventListener("input", renderTable);
-    document.getElementById("showAll").addEventListener("change", renderTable);
-
-    document.querySelectorAll(".filter-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
-        btn.classList.add("active");
-        activeFilter = btn.dataset.filter;
-        renderTable();
-      });
+    document.getElementById("search").addEventListener("input", () => { currentPage = 1; renderAll(); });
+    document.getElementById("statusFilter").addEventListener("change", () => { currentPage = 1; renderAll(); });
+    document.getElementById("showAll").addEventListener("change", () => { currentPage = 1; renderAll(); });
+    document.getElementById("perPage").addEventListener("change", () => { currentPage = 1; renderAll(); });
+    document.getElementById("sortSelect").addEventListener("change", e => {
+      sortCol = e.target.value;
+      sortDir = sortCol === "stars" ? "desc" : "asc";
+      renderAll();
     });
 
     document.getElementById("output").addEventListener("click", e => {
@@ -451,7 +504,12 @@
         sortCol = col;
         sortDir = col === "stars" ? "desc" : "asc";
       }
-      renderTable();
+      // Sync the sort dropdown
+      const sel = document.getElementById("sortSelect");
+      for (const opt of sel.options) {
+        if (opt.value === sortCol) { sel.value = sortCol; break; }
+      }
+      renderAll();
     });
 
     init();
