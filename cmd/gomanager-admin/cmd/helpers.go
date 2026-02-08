@@ -12,6 +12,34 @@ import (
 	"time"
 )
 
+// safeGoEnv returns a minimal environment for running go install on untrusted
+// packages. Only variables required by the Go toolchain are included — secrets
+// like GITHUB_TOKEN and CI runner tokens are explicitly excluded so a malicious
+// package cannot exfiltrate them (e.g. via #cgo directives).
+func safeGoEnv(gobin string, extra map[string]string) []string {
+	// Allowlist of environment variables safe/needed for go install.
+	allowed := []string{
+		"HOME", "USER", "PATH", "TMPDIR",
+		"GOPATH", "GOROOT", "GOMODCACHE", "GOPROXY", "GONOSUMCHECK",
+		"GONOSUMDB", "GONOPROXY", "GOPRIVATE", "GOFLAGS", "GOTOOLCHAIN",
+		"GOTELEMETRY", "SSL_CERT_FILE", "SSL_CERT_DIR",
+		// Needed on some systems for DNS/TLS
+		"LANG", "LC_ALL",
+	}
+
+	env := make([]string, 0, len(allowed)+len(extra)+1)
+	for _, key := range allowed {
+		if val, ok := os.LookupEnv(key); ok {
+			env = append(env, key+"="+val)
+		}
+	}
+	env = append(env, "GOBIN="+gobin)
+	for k, v := range extra {
+		env = append(env, k+"="+v)
+	}
+	return env
+}
+
 func tryGoInstall(installPath string, envFlags map[string]string) (ok bool, flags map[string]string, errMsg string) {
 	tmpDir, err := os.MkdirTemp("", "gomanager-verify-*")
 	if err != nil {
@@ -20,10 +48,7 @@ func tryGoInstall(installPath string, envFlags map[string]string) (ok bool, flag
 	defer os.RemoveAll(tmpDir)
 
 	goCmd := exec.Command("go", "install", installPath)
-	goCmd.Env = append(os.Environ(), "GOBIN="+tmpDir)
-	for k, v := range envFlags {
-		goCmd.Env = append(goCmd.Env, k+"="+v)
-	}
+	goCmd.Env = safeGoEnv(tmpDir, envFlags)
 
 	var stderr bytes.Buffer
 	goCmd.Stderr = &stderr
