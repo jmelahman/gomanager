@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 	osexec "os/exec"
@@ -30,9 +31,47 @@ func init() {
 	rootCmd.AddCommand(installCmd)
 }
 
+// resolveBinary looks up a binary by name or package path. If the argument
+// looks like a Go module path (contains a slash), it resolves by package path.
+// If multiple packages share the same name, the user is prompted to pick one.
+func resolveBinary(conn *sql.DB, arg string) (*db.Binary, error) {
+	// If it looks like a package path, look up directly
+	if strings.Contains(arg, "/") {
+		return db.GetByPackage(conn, arg)
+	}
+
+	matches, err := db.FindByName(conn, arg)
+	if err != nil {
+		return nil, err
+	}
+	if len(matches) == 0 {
+		return nil, fmt.Errorf("binary %q not found in database", arg)
+	}
+	if len(matches) == 1 {
+		return &matches[0], nil
+	}
+
+	// Multiple matches — ask the user to pick
+	fmt.Printf("Multiple packages named %q:\n", arg)
+	for i, m := range matches {
+		status := m.BuildStatus
+		if status == "" {
+			status = "unknown"
+		}
+		fmt.Printf("  [%d] %s (%s, %d stars)\n", i+1, m.Package, status, m.Stars)
+	}
+	fmt.Printf("Select [1-%d]: ", len(matches))
+
+	var choice int
+	if _, err := fmt.Scanln(&choice); err != nil || choice < 1 || choice > len(matches) {
+		return nil, fmt.Errorf("invalid selection")
+	}
+	return &matches[choice-1], nil
+}
+
 var installCmd = &cobra.Command{
-	Use:   "install <name>",
-	Short: "Install a Go binary by name",
+	Use:   "install <name or package>",
+	Short: "Install a Go binary by name or package path",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := ensureDB(); err != nil {
@@ -44,7 +83,7 @@ var installCmd = &cobra.Command{
 		}
 		defer conn.Close()
 
-		b, err := db.GetByName(conn, args[0])
+		b, err := resolveBinary(conn, args[0])
 		if err != nil {
 			return err
 		}

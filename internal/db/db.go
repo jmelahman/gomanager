@@ -209,7 +209,8 @@ func Search(conn *sql.DB, query string) ([]Binary, error) {
 	return scanBinaries(rows)
 }
 
-// GetByName finds a binary by exact name.
+// GetByName finds a binary by exact name. If multiple packages share the
+// same name, the one with the most stars is returned.
 func GetByName(conn *sql.DB, name string) (*Binary, error) {
 	row := conn.QueryRow(
 		fmt.Sprintf(
@@ -220,6 +221,39 @@ func GetByName(conn *sql.DB, name string) (*Binary, error) {
 	b, err := scanBinary(row)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("binary %q not found in database", name)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+// FindByName returns all binaries matching the given name (case-insensitive).
+func FindByName(conn *sql.DB, name string) ([]Binary, error) {
+	rows, err := conn.Query(
+		fmt.Sprintf(
+			`SELECT %s FROM binaries WHERE LOWER(name) = LOWER(?)
+			 ORDER BY stars DESC`, selectCols),
+		name,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanBinaries(rows)
+}
+
+// GetByPackage finds a binary by exact package path.
+func GetByPackage(conn *sql.DB, pkg string) (*Binary, error) {
+	row := conn.QueryRow(
+		fmt.Sprintf(
+			`SELECT %s FROM binaries WHERE package = ?
+			 LIMIT 1`, selectCols),
+		pkg,
+	)
+	b, err := scanBinary(row)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("package %q not found in database", pkg)
 	}
 	if err != nil {
 		return nil, err

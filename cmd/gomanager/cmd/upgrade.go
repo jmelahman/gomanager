@@ -52,7 +52,15 @@ var upgradeCmd = &cobra.Command{
 		}
 
 		for _, name := range toUpgrade {
-			b, err := db.GetByName(conn, name)
+			// If we have the package path from install state, use it directly
+			// to avoid ambiguity with duplicate names.
+			var b *db.Binary
+			if installed, ok := st.Installed[name]; ok && installed.Package != "" {
+				b, err = db.GetByPackage(conn, installed.Package)
+			}
+			if b == nil {
+				b, err = resolveBinary(conn, name)
+			}
 			if err != nil {
 				fmt.Printf("Skipping %s: %v\n", name, err)
 				continue
