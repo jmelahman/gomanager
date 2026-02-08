@@ -49,12 +49,13 @@ GITHUB_TOKEN=ghp_... python generate_tools_json.py
 
 Attempts `go install` on unverified packages and updates their build status. If a build fails, it retries with `CGO_ENABLED=0`. Each binary gets a status:
 
-| Status | Meaning |
-|---|---|
+| Status      | Meaning                              |
+| ----------- | ------------------------------------ |
 | `confirmed` | Successfully built with `go install` |
-| `failed` | Build failed (error recorded) |
-| `unknown` | Not yet tested |
-| `pending` | Queued for verification |
+| `failed`    | Build failed (error recorded)        |
+| `regressed` | Build failed (previously confirmed)  |
+| `unknown`   | Not yet tested                       |
+| `pending`   | Queued for verification              |
 
 Run locally against the repo database:
 
@@ -74,30 +75,3 @@ To preview locally:
 ```
 
 This starts a local HTTP server on the nearest available port (starting at 8000) and opens it in your browser.
-
-### GitHub Actions
-
-- **`.github/workflows/scan.yml`** — Runs the scanner daily, commits updated `database.db` and `scanned_repos.json`.
-- **`.github/workflows/verify.yml`** — Runs weekly, verifies unverified packages, commits results.
-
-## Project structure
-
-```
-generate_tools_json.py          # GitHub repo scanner (Python)
-database.db                     # SQLite database of Go binaries
-scanned_repos.json              # Tracks scanned repos for incremental scanning
-index.html                      # Static web frontend
-cmd/gomanager/                  # Go CLI tool
-  main.go
-  cmd/                          # CLI commands (cobra)
-  internal/db/                  # Database access layer
-  internal/state/               # Local install state tracking
-  internal/pkgbuild/            # AUR PKGBUILD generation
-.github/workflows/
-  scan.yml                      # Scheduled scanner workflow
-  verify.yml                    # Scheduled build verification workflow
-```
-
-## License
-
-GPL-3.0
