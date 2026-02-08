@@ -59,7 +59,7 @@ Discovers Go CLI repositories on GitHub using multiple search queries. It detect
 Run it locally:
 
 ```bash
-GITHUB_TOKEN=ghp_... gomanager-admin scan --database ./database.db
+GITHUB_TOKEN=$(gh auth token) gomanager-admin scan --database ./database.db
 ```
 
 ### Build verification (`gomanager-admin verify`)
