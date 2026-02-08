@@ -1,8 +1,18 @@
-# GoManager
+<p align="center">
+  <img src="assets/gomanager_logo.png" alt="GoManager" width="400" />
+</p>
 
 A curated database of Go binaries with a CLI tool for searching, installing, and managing them.
 
 GoManager automatically scans GitHub for Go CLI repositories, verifies they build with `go install`, and publishes the results to a SQLite database. A static web frontend and a Go CLI provide access to the catalog.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/preview_dark.png" />
+    <source media="(prefers-color-scheme: light)" srcset="assets/preview.png" />
+    <img src="assets/preview.png" alt="GoManager Preview" width="800" />
+  </picture>
+</p>
 
 ## Install the CLI
 
