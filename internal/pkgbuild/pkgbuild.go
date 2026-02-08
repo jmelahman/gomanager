@@ -20,43 +20,74 @@ const pkgbuildTemplate = `# Maintainer: gomanager <gomanager@generated>
 pkgname={{.PkgName}}
 pkgver={{.PkgVer}}
 pkgrel=1
-pkgdesc='{{.PkgDesc}}'
+pkgdesc="{{.PkgDesc}}"
 arch=('x86_64' 'aarch64')
-url='{{.URL}}'
+url="{{.URL}}"
 license=('unknown')
-makedepends=('go')
-source=()
-sha256sums=()
+{{- if .NoCGO}}
+depends=()
+{{- else}}
+depends=('glibc')
+{{- end}}
+makedepends=('go' 'git')
+source=("git+{{.GitURL}}.git#tag={{.TagPrefix}}$pkgver")
+sha256sums=('SKIP')
 
 build() {
-  cd "$srcdir"
-  {{- range .EnvVars}}
+  cd $pkgname
+{{- range .EnvVars}}
   export {{.}}
-  {{- end}}
-  go install {{.Package}}@v${pkgver}
-  # Binary is installed to ~/go/bin by default; we build it explicitly instead
-  go build -o "${pkgname}" -trimpath -ldflags='-s -w' {{.Package}}@v${pkgver} || \
-    go build -o "${pkgname}" -trimpath -ldflags='-s -w' {{.GoImportPath}}
+{{- end}}
+  go build \
+    -trimpath \
+    -mod=readonly \
+    -modcacherw \
+    -ldflags='-s -w' \
+    -o $pkgname \
+    {{.BuildPath}}
 }
 
 package() {
-  install -Dm755 "${pkgname}" "${pkgdir}/usr/bin/${pkgname}"
+  cd $pkgname
+  install -Dm 755 $pkgname -t "$pkgdir/usr/bin"
+{{- if .LicenseFile}}
+  install -Dm 644 {{.LicenseFile}} -t "$pkgdir/usr/share/licenses/$pkgname"
+{{- end}}
+{{- if .ReadmeFile}}
+  install -Dm 644 {{.ReadmeFile}} -t "$pkgdir/usr/share/doc/$pkgname"
+{{- end}}
 }
 `
 
+// Options holds optional metadata that can be discovered from the repository
+// prior to PKGBUILD generation (e.g. via the GitHub API).
+type Options struct {
+	// LicenseFile is the exact filename of the license (e.g. "LICENSE", "LICENSE.md").
+	// If empty, no license install line is emitted.
+	LicenseFile string
+	// ReadmeFile is the exact filename of the readme (e.g. "README.md", "README").
+	// If empty, no readme install line is emitted.
+	ReadmeFile string
+}
+
 // TemplateData holds the values for PKGBUILD generation.
 type TemplateData struct {
-	PkgName      string
-	PkgVer       string
-	PkgDesc      string
-	URL          string
-	Package      string
-	GoImportPath string
-	EnvVars      []string
+	PkgName     string
+	PkgVer      string
+	PkgDesc     string
+	URL         string
+	GitURL      string
+	TagPrefix   string
+	BuildPath   string
+	EnvVars     []string
+	NoCGO       bool
+	LicenseFile string
+	ReadmeFile  string
 }
 
 // Generate writes a PKGBUILD to the given writer for the specified binary.
-func Generate(w io.Writer, b *db.Binary) error {
+// If opts is nil, license and readme install lines are omitted.
+func Generate(w io.Writer, b *db.Binary, opts *Options) error {
 	version := b.Version
 	if version == "" || version == "latest" {
 		return fmt.Errorf("cannot generate PKGBUILD for %q: no version tag available (version is %q)", b.Name, version)
@@ -73,8 +104,8 @@ func Generate(w io.Writer, b *db.Binary) error {
 	}
 
 	desc := b.Description
-	// Escape single quotes in description
-	desc = strings.ReplaceAll(desc, "'", "'\"'\"'")
+	// Escape double quotes in description for the PKGBUILD shell context
+	desc = strings.ReplaceAll(desc, `"`, `\"`)
 	if desc == "" {
 		desc = fmt.Sprintf("Go binary: %s", b.Name)
 	}
@@ -82,6 +113,35 @@ func Generate(w io.Writer, b *db.Binary) error {
 	url := b.RepoURL
 	if url == "" {
 		url = "https://" + b.Package
+	}
+	// Git source URL: strip trailing .git if present, we add it in the template
+	gitURL := strings.TrimSuffix(url, ".git")
+
+	// Determine tag prefix: if the original version started with 'v', use 'v'
+	tagPrefix := ""
+	if strings.HasPrefix(version, "v") {
+		tagPrefix = "v"
+	}
+
+	// Determine the build path relative to the repo root.
+	// For root packages (github.com/owner/repo), use "."
+	// For sub-packages (github.com/owner/repo/cmd/foo), use "./cmd/foo"
+	buildPath := "."
+	parts := strings.SplitN(b.Package, "/", 4) // github.com / owner / repo / rest
+	if len(parts) == 4 {
+		// Strip version suffixes like /v4 from the subpath
+		sub := parts[3]
+		// If the sub-path is just a major version (e.g. "v4"), it's still a root build
+		if !regexp.MustCompile(`^v\d+$`).MatchString(sub) {
+			// Strip leading version prefix if present (e.g. "v4/cmd/foo" -> "cmd/foo")
+			if idx := strings.Index(sub, "/"); idx >= 0 {
+				prefix := sub[:idx]
+				if regexp.MustCompile(`^v\d+$`).MatchString(prefix) {
+					sub = sub[idx+1:]
+				}
+			}
+			buildPath = "./" + sub
+		}
 	}
 
 	var envVars []string
@@ -92,14 +152,33 @@ func Generate(w io.Writer, b *db.Binary) error {
 		}
 	}
 
+	// Detect if CGO is explicitly disabled
+	noCGO := false
+	for _, e := range envVars {
+		if e == "CGO_ENABLED=0" {
+			noCGO = true
+			break
+		}
+	}
+
+	var licenseFile, readmeFile string
+	if opts != nil {
+		licenseFile = opts.LicenseFile
+		readmeFile = opts.ReadmeFile
+	}
+
 	data := TemplateData{
-		PkgName:      b.Name,
-		PkgVer:       pkgVer,
-		PkgDesc:      desc,
-		URL:          url,
-		Package:      b.Package,
-		GoImportPath: b.Package,
-		EnvVars:      envVars,
+		PkgName:     b.Name,
+		PkgVer:      pkgVer,
+		PkgDesc:     desc,
+		URL:         url,
+		GitURL:      gitURL,
+		TagPrefix:   tagPrefix,
+		BuildPath:   buildPath,
+		EnvVars:     envVars,
+		NoCGO:       noCGO,
+		LicenseFile: licenseFile,
+		ReadmeFile:  readmeFile,
 	}
 
 	tmpl, err := template.New("PKGBUILD").Parse(pkgbuildTemplate)

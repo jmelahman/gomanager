@@ -1,9 +1,13 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/jmelahman/gomanager/internal/db"
 	"github.com/jmelahman/gomanager/internal/pkgbuild"
@@ -23,6 +27,98 @@ var exportCmd = &cobra.Command{
 	Short: "Export binary metadata in various formats",
 }
 
+// licenseNames are filenames to look for as license files, in priority order.
+var licenseNames = []string{"LICENSE", "LICENSE.md", "LICENSE.txt", "LICENCE", "LICENCE.md", "LICENCE.txt", "COPYING", "COPYING.md"}
+
+// readmeNames are filenames to look for as readme files, in priority order.
+var readmeNames = []string{"README.md", "README", "README.txt", "README.rst"}
+
+// fetchRepoFiles lists the root directory of a GitHub repository and returns
+// the set of filenames found. Returns nil (no error) if the API call fails,
+// so the caller can gracefully degrade to no license/readme lines.
+func fetchRepoFiles(owner, repo, token string) map[string]bool {
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/", owner, repo)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "token "+token)
+	}
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil
+	}
+
+	var entries []struct {
+		Name string `json:"name"`
+		Type string `json:"type"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&entries); err != nil {
+		return nil
+	}
+
+	files := make(map[string]bool, len(entries))
+	for _, e := range entries {
+		if e.Type == "file" {
+			files[e.Name] = true
+		}
+	}
+	return files
+}
+
+// detectRepoFiles looks up the GitHub repository for the given binary and
+// returns the PKGBUILD options with detected license and readme filenames.
+func detectRepoFiles(b *db.Binary) *pkgbuild.Options {
+	owner, repo, ok := parseGitHubOwnerRepo(b.Package)
+	if !ok {
+		return nil
+	}
+
+	token := os.Getenv("GITHUB_TOKEN")
+	files := fetchRepoFiles(owner, repo, token)
+	if files == nil {
+		return nil
+	}
+
+	opts := &pkgbuild.Options{}
+	for _, name := range licenseNames {
+		if files[name] {
+			opts.LicenseFile = name
+			break
+		}
+	}
+	for _, name := range readmeNames {
+		if files[name] {
+			opts.ReadmeFile = name
+			break
+		}
+	}
+
+	// Also check case-insensitive matches for common variants
+	if opts.LicenseFile == "" || opts.ReadmeFile == "" {
+		for f := range files {
+			upper := strings.ToUpper(f)
+			if opts.LicenseFile == "" && (strings.HasPrefix(upper, "LICENSE") || strings.HasPrefix(upper, "LICENCE") || upper == "COPYING") {
+				opts.LicenseFile = f
+			}
+			if opts.ReadmeFile == "" && strings.HasPrefix(upper, "README") {
+				opts.ReadmeFile = f
+			}
+		}
+	}
+
+	return opts
+}
+
 var exportPkgbuildCmd = &cobra.Command{
 	Use:   "pkgbuild <name>",
 	Short: "Generate an AUR PKGBUILD for a Go binary",
@@ -39,6 +135,9 @@ var exportPkgbuildCmd = &cobra.Command{
 			return err
 		}
 
+		// Fetch repo file listing to detect LICENSE and README
+		opts := detectRepoFiles(b)
+
 		if outputDir != "" {
 			dir := filepath.Join(outputDir, b.Name)
 			if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -49,13 +148,13 @@ var exportPkgbuildCmd = &cobra.Command{
 				return err
 			}
 			defer f.Close()
-			if err := pkgbuild.Generate(f, b); err != nil {
+			if err := pkgbuild.Generate(f, b, opts); err != nil {
 				return err
 			}
 			fmt.Printf("PKGBUILD written to %s/PKGBUILD\n", dir)
 			return nil
 		}
 
-		return pkgbuild.Generate(os.Stdout, b)
+		return pkgbuild.Generate(os.Stdout, b, opts)
 	},
 }
