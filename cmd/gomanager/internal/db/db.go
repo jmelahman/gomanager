@@ -179,6 +179,60 @@ func scanBinaries(rows *sql.Rows) ([]Binary, error) {
 	return result, rows.Err()
 }
 
+// MigrateSchema updates the database schema to support the 'regressed' build status.
+func MigrateSchema(conn *sql.DB) error {
+	var tableSql string
+	err := conn.QueryRow("SELECT sql FROM sqlite_master WHERE type='table' AND name='binaries'").Scan(&tableSql)
+	if err != nil {
+		return nil // table doesn't exist, nothing to migrate
+	}
+	if !strings.Contains(tableSql, "CHECK") || strings.Contains(tableSql, "'regressed'") {
+		return nil // already has regressed or no CHECK constraint
+	}
+
+	newSql := strings.Replace(tableSql,
+		"'unknown','confirmed','failed','pending'",
+		"'unknown','confirmed','failed','pending','regressed'", 1)
+
+	if _, err := conn.Exec("PRAGMA writable_schema = ON"); err != nil {
+		return fmt.Errorf("enable writable_schema: %w", err)
+	}
+	if _, err := conn.Exec("UPDATE sqlite_master SET sql = ? WHERE type='table' AND name='binaries'", newSql); err != nil {
+		conn.Exec("PRAGMA writable_schema = OFF")
+		return fmt.Errorf("update schema: %w", err)
+	}
+	if _, err := conn.Exec("PRAGMA writable_schema = OFF"); err != nil {
+		return fmt.Errorf("disable writable_schema: %w", err)
+	}
+	return nil
+}
+
+// UpdateVersion updates the version for a specific package.
+func UpdateVersion(conn *sql.DB, id int, newVersion string) error {
+	_, err := conn.Exec(
+		`UPDATE binaries SET version = ?, updated_at = datetime('now') WHERE id = ?`,
+		newVersion, id,
+	)
+	return err
+}
+
+// GetStaleConfirmed returns confirmed packages that were updated since their last verification.
+// These are packages whose version was bumped by update-versions and need re-testing.
+func GetStaleConfirmed(conn *sql.DB, limit int) ([]Binary, error) {
+	rows, err := conn.Query(
+		fmt.Sprintf(`SELECT %s FROM binaries
+		 WHERE build_status = 'confirmed'
+		   AND updated_at > COALESCE(last_verified, '1970-01-01')
+		 ORDER BY stars DESC LIMIT ?`, selectCols),
+		limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanBinaries(rows)
+}
+
 // InstallCommand returns the full install command string for a binary,
 // including any required environment flags.
 func (b *Binary) InstallCommand() string {

@@ -5,15 +5,86 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GoManager — Go Binary Repository</title>
   <style>
+    /* Light mode (default) */
+    :root {
+      --bg: #f5f5f5;
+      --bg-header: #fff;
+      --bg-panel: #fff;
+      --bg-input: #fff;
+      --bg-hover: #f0f0f0;
+      --bg-btn: #eee;
+      --bg-btn-hover: #ddd;
+      --text: #333;
+      --text-muted: #666;
+      --text-heading: #222;
+      --link: #07b;
+      --border: #ddd;
+      --border-row: #eee;
+      --border-input: #ccc;
+      --confirmed: #2a7a2a;
+      --failed: #c44;
+      --regressed: #c87a20;
+      --unknown: #999;
+      --flags: #a55;
+      --cmd: #555;
+      --copy-bg: #eee;
+      --copy-border: #ccc;
+      --copy-text: #666;
+      --copy-hover-bg: #ddd;
+      --copy-hover-text: #333;
+      --arrow: #07b;
+      --pagination-bold: #222;
+      --save-bg: #2a7a2a;
+      --edit-highlight: #fffbe6;
+      --edit-border: #e8c547;
+      --primary-icon: #999;
+      --primary-icon-active: #e8c547;
+    }
+    /* Dark mode */
+    html.dark {
+      --bg: #1b1d1e;
+      --bg-header: #222;
+      --bg-panel: #222;
+      --bg-input: #1b1d1e;
+      --bg-hover: #252729;
+      --bg-btn: #333;
+      --bg-btn-hover: #444;
+      --text: #ccc;
+      --text-muted: #999;
+      --text-heading: #eee;
+      --link: #07b;
+      --border: #333;
+      --border-row: #2a2c2d;
+      --border-input: #444;
+      --confirmed: #6a2;
+      --failed: #c44;
+      --regressed: #e8a030;
+      --unknown: #666;
+      --flags: #b87;
+      --cmd: #aaa;
+      --copy-bg: #333;
+      --copy-border: #555;
+      --copy-text: #888;
+      --copy-hover-bg: #444;
+      --copy-hover-text: #eee;
+      --arrow: #07b;
+      --pagination-bold: #eee;
+      --save-bg: #2a7a2a;
+      --edit-highlight: #3a3520;
+      --edit-border: #8a7520;
+      --primary-icon: #555;
+      --primary-icon-active: #e8c547;
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: sans-serif;
       font-size: 13px;
-      background: #1b1d1e;
-      color: #ccc;
+      background: var(--bg);
+      color: var(--text);
       line-height: 1.5;
     }
-    a { color: #07b; text-decoration: none; }
+    a { color: var(--link); text-decoration: none; }
     a:hover { text-decoration: underline; }
     .container {
       max-width: 1500px;
@@ -23,8 +94,8 @@
 
     /* Header */
     .site-header {
-      background: #222;
-      border-bottom: 1px solid #333;
+      background: var(--bg-header);
+      border-bottom: 1px solid var(--border);
       padding: 10px 0;
       margin-bottom: 15px;
     }
@@ -38,24 +109,46 @@
     .site-header h1 {
       font-size: 18px;
       font-weight: 700;
-      color: #eee;
+      color: var(--text-heading);
     }
-    .site-header h1 span { color: #07b; }
+    .site-header h1 span { color: var(--link); }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
     .site-header .subtitle {
-      color: #888;
+      color: var(--text-muted);
       font-size: 12px;
+      margin-right: 8px;
+    }
+    .header-btn {
+      background: var(--bg-btn);
+      border: 1px solid var(--border-input);
+      color: var(--text-muted);
+      padding: 3px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+      border-radius: 3px;
+    }
+    .header-btn:hover { background: var(--bg-btn-hover); color: var(--text); }
+    .header-btn.active {
+      background: var(--link);
+      color: #fff;
+      border-color: var(--link);
     }
 
     /* Search Criteria box */
     .search-criteria {
-      background: #222;
-      border: 1px solid #333;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
       padding: 12px 15px;
       margin-bottom: 15px;
     }
     .search-criteria h2 {
       font-size: 14px;
-      color: #eee;
+      color: var(--text-heading);
       margin-bottom: 10px;
       font-weight: 600;
     }
@@ -66,12 +159,12 @@
       flex-wrap: wrap;
     }
     .search-field { display: flex; flex-direction: column; gap: 3px; }
-    .search-field label { font-size: 11px; color: #999; }
+    .search-field label { font-size: 11px; color: var(--text-muted); }
     .search-field input,
     .search-field select {
-      background: #1b1d1e;
-      color: #ccc;
-      border: 1px solid #444;
+      background: var(--bg-input);
+      color: var(--text);
+      border: 1px solid var(--border-input);
       padding: 4px 8px;
       font-size: 13px;
       font-family: inherit;
@@ -79,23 +172,13 @@
     .search-field input { width: 260px; }
     .search-field select { min-width: 100px; }
     .search-field input:focus,
-    .search-field select:focus { border-color: #07b; outline: none; }
-    .search-btn {
-      background: #333;
-      color: #ccc;
-      border: 1px solid #444;
-      padding: 4px 16px;
-      font-size: 13px;
-      cursor: pointer;
-      font-family: inherit;
-    }
-    .search-btn:hover { background: #444; }
+    .search-field select:focus { border-color: var(--link); outline: none; }
     .toggle-label {
       display: flex;
       align-items: center;
       gap: 4px;
       font-size: 12px;
-      color: #999;
+      color: var(--text-muted);
       cursor: pointer;
       user-select: none;
       padding-bottom: 2px;
@@ -109,11 +192,11 @@
       align-items: center;
       margin-bottom: 6px;
       font-size: 12px;
-      color: #999;
+      color: var(--text-muted);
     }
     .results-info .stats-inline span { margin-left: 10px; }
-    .results-info .confirmed-count { color: #6a2; }
-    .results-info .failed-count { color: #c44; }
+    .results-info .confirmed-count { color: var(--confirmed); }
+    .results-info .failed-count { color: var(--failed); }
 
     /* Table */
     table {
@@ -121,32 +204,32 @@
       border-collapse: collapse;
       table-layout: fixed;
     }
-    thead { background: #222; }
+    thead { background: var(--bg-panel); }
     th {
       padding: 6px 10px;
       text-align: left;
       font-weight: 600;
       font-size: 12px;
-      color: #aaa;
-      border-bottom: 1px solid #444;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-input);
       cursor: pointer;
       user-select: none;
       white-space: nowrap;
       overflow: hidden;
     }
-    th:hover { color: #07b; }
+    th:hover { color: var(--link); }
     th .arrow { font-size: 9px; margin-left: 3px; opacity: 0.4; }
-    th.sorted .arrow { opacity: 1; color: #07b; }
+    th.sorted .arrow { opacity: 1; color: var(--arrow); }
     td {
       padding: 4px 10px;
-      border-bottom: 1px solid #2a2c2d;
+      border-bottom: 1px solid var(--border-row);
       font-size: 13px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
       vertical-align: middle;
     }
-    tr:hover td { background: #252729; }
+    tr:hover td { background: var(--bg-hover); }
     /* Column widths */
     .col-name { width: 13%; }
     .col-version { width: 8%; }
@@ -156,13 +239,14 @@
     .col-install { width: 36%; }
 
     td.stars-cell { text-align: right; font-variant-numeric: tabular-nums; }
-    td.name-cell a { color: #07b; }
-    td.desc-cell { color: #999; }
+    td.name-cell a { color: var(--link); }
+    td.desc-cell { color: var(--text-muted); }
 
     /* Status styles */
-    .status-confirmed { color: #6a2; }
-    .status-failed { color: #c44; }
-    .status-unknown { color: #666; }
+    .status-confirmed { color: var(--confirmed); }
+    .status-failed { color: var(--failed); }
+    .status-regressed { color: var(--regressed); }
+    .status-unknown { color: var(--unknown); }
 
     /* Install column */
     td.install-cell {
@@ -171,14 +255,14 @@
       white-space: nowrap;
     }
     td.install-cell .flags {
-      color: #b87;
+      color: var(--flags);
       margin-right: 2px;
     }
-    td.install-cell .cmd { color: #aaa; }
+    td.install-cell .cmd { color: var(--cmd); }
     .copy-btn {
-      background: #333;
-      border: 1px solid #555;
-      color: #888;
+      background: var(--copy-bg);
+      border: 1px solid var(--copy-border);
+      color: var(--copy-text);
       padding: 1px 8px;
       margin-right: 6px;
       cursor: pointer;
@@ -186,18 +270,84 @@
       font-family: inherit;
       vertical-align: middle;
     }
-    .copy-btn:hover { background: #444; color: #eee; }
-    .copy-btn.copied { color: #6a2; border-color: #6a2; }
+    .copy-btn:hover { background: var(--copy-hover-bg); color: var(--copy-hover-text); }
+    .copy-btn.copied { color: var(--confirmed); border-color: var(--confirmed); }
 
     .empty-state {
       text-align: center;
       padding: 40px;
-      color: #666;
+      color: var(--text-muted);
     }
     .loading {
       text-align: center;
       padding: 60px;
-      color: #666;
+      color: var(--text-muted);
+    }
+
+    /* Edit mode styles */
+    .edit-mode .editable {
+      cursor: pointer;
+      border-bottom: 1px dashed var(--edit-border);
+    }
+    .edit-mode .editable:hover {
+      background: var(--edit-highlight);
+    }
+    .edit-mode .primary-toggle {
+      cursor: pointer;
+      font-size: 11px;
+      margin-left: 4px;
+      opacity: 0.7;
+    }
+    .edit-mode .primary-toggle:hover { opacity: 1; }
+    .primary-toggle { display: none; }
+    .edit-mode .primary-toggle { display: inline; }
+
+    /* Inline edit input */
+    .inline-edit {
+      background: var(--bg-input);
+      color: var(--text);
+      border: 1px solid var(--edit-border);
+      padding: 2px 6px;
+      font-size: 12px;
+      font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+      width: 100%;
+      outline: none;
+    }
+
+    /* Save bar */
+    .save-bar {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--save-bg);
+      color: #fff;
+      padding: 10px 20px;
+      font-size: 13px;
+      z-index: 100;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.3);
+    }
+    .save-bar.visible { display: flex; }
+    .save-bar .save-info { flex: 1; }
+    .save-bar button {
+      background: #fff;
+      color: var(--save-bg);
+      border: none;
+      padding: 6px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 3px;
+      margin-left: 10px;
+    }
+    .save-bar button:hover { opacity: 0.9; }
+    .save-bar .discard-btn {
+      background: transparent;
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.5);
     }
 
     @media (max-width: 900px) {
@@ -219,7 +369,11 @@
       <div>
         <h1>Go<span>Manager</span></h1>
       </div>
-      <div class="subtitle">Go binary repository</div>
+      <div class="header-right">
+        <span class="subtitle">Go binary repository</span>
+        <button class="header-btn" id="editToggle" title="Toggle edit mode">✏️ Edit</button>
+        <button class="header-btn" id="themeToggle" title="Toggle dark mode">🌙 Dark</button>
+      </div>
     </div>
   </div>
 
@@ -237,6 +391,7 @@
             <option value="all">All</option>
             <option value="confirmed">Confirmed</option>
             <option value="failed">Failed</option>
+            <option value="regressed">Regressed</option>
             <option value="unknown">Unknown</option>
           </select>
         </div>
@@ -269,13 +424,192 @@
     <div class="results-info" id="paginationBottom"></div>
   </div>
 
+  <div class="save-bar" id="saveBar">
+    <span class="save-info"><span id="changeCount">0</span> unsaved change(s)</span>
+    <button class="discard-btn" onclick="discardChanges()">Discard</button>
+    <button onclick="saveDatabase()">Save Database</button>
+  </div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
   <script>
+    // Theme handling
+    (function() {
+      const saved = localStorage.getItem("theme");
+      if (saved === "dark") {
+        document.documentElement.classList.add("dark");
+      }
+      if (!saved && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+        document.documentElement.classList.add("dark");
+      }
+    })();
+
+    function updateThemeButton() {
+      const btn = document.getElementById("themeToggle");
+      const isDark = document.documentElement.classList.contains("dark");
+      btn.textContent = isDark ? "☀️ Light" : "🌙 Dark";
+    }
+
+    document.getElementById("themeToggle").addEventListener("click", () => {
+      document.documentElement.classList.toggle("dark");
+      const isDark = document.documentElement.classList.contains("dark");
+      localStorage.setItem("theme", isDark ? "dark" : "light");
+      updateThemeButton();
+    });
+    updateThemeButton();
+
+    // State
     let db = null;
     let allRows = [];
     let sortCol = "stars";
     let sortDir = "desc";
     let currentPage = 1;
+    let editMode = false;
+    let pendingChanges = new Map(); // id -> { field: newValue, ... }
+    let fileHandle = null; // for File System Access API
+
+    // Edit mode toggle
+    document.getElementById("editToggle").addEventListener("click", () => {
+      editMode = !editMode;
+      const btn = document.getElementById("editToggle");
+      btn.classList.toggle("active", editMode);
+      btn.textContent = editMode ? "✏️ Editing" : "✏️ Edit";
+      document.body.classList.toggle("edit-mode", editMode);
+      renderAll();
+    });
+
+    // Track changes
+    function recordChange(id, field, value) {
+      if (!pendingChanges.has(id)) pendingChanges.set(id, {});
+      pendingChanges.get(id)[field] = value;
+      updateSaveBar();
+    }
+
+    function updateSaveBar() {
+      const bar = document.getElementById("saveBar");
+      const count = pendingChanges.size;
+      document.getElementById("changeCount").textContent = count;
+      bar.classList.toggle("visible", count > 0);
+    }
+
+    function applyChangeToDb(id, field, value) {
+      db.run(`UPDATE binaries SET ${field} = ? WHERE id = ?`, [value, id]);
+      // Also update the in-memory allRows
+      const row = allRows.find(r => r.id === id);
+      if (row) row[field] = value;
+    }
+
+    function discardChanges() {
+      // Reload data from the db (which still has original values for uncommitted changes)
+      // Actually, we apply changes immediately to the in-memory db, so discard means re-fetch from file
+      // Simpler: just reload the page
+      if (confirm("Discard all unsaved changes? This will reload the database from disk.")) {
+        pendingChanges.clear();
+        updateSaveBar();
+        location.reload();
+      }
+    }
+
+    // Save database
+    async function saveDatabase() {
+      const data = db.export();
+      const blob = new Blob([data], { type: "application/octet-stream" });
+
+      // Try File System Access API first (Chrome/Edge on localhost)
+      if (window.showSaveFilePicker) {
+        try {
+          if (!fileHandle) {
+            fileHandle = await window.showSaveFilePicker({
+              suggestedName: "database.db",
+              types: [{ description: "SQLite Database", accept: { "application/octet-stream": [".db"] } }],
+            });
+          }
+          const writable = await fileHandle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+          pendingChanges.clear();
+          updateSaveBar();
+          showToast("Database saved successfully!");
+          return;
+        } catch (err) {
+          if (err.name === "AbortError") return; // user cancelled
+          // Fall through to download
+        }
+      }
+
+      // Fallback: download
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "database.db";
+      a.click();
+      URL.revokeObjectURL(url);
+      pendingChanges.clear();
+      updateSaveBar();
+      showToast("Database downloaded. Replace your database.db with the downloaded file.");
+    }
+
+    function showToast(msg) {
+      const el = document.createElement("div");
+      el.textContent = msg;
+      el.style.cssText = "position:fixed;top:15px;right:15px;background:var(--save-bg);color:#fff;padding:10px 18px;border-radius:4px;font-size:13px;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,0.3);";
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 3000);
+    }
+
+    // Status cycling
+    const STATUS_CYCLE = ["unknown", "confirmed", "failed", "regressed"];
+    function cycleStatus(id, currentStatus) {
+      const idx = STATUS_CYCLE.indexOf(currentStatus || "unknown");
+      const next = STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length];
+      applyChangeToDb(id, "build_status", next);
+      recordChange(id, "build_status", next);
+      renderAll();
+    }
+
+    // Primary toggle
+    function togglePrimary(id, current) {
+      const next = current ? 0 : 1;
+      applyChangeToDb(id, "is_primary", next);
+      recordChange(id, "is_primary", next);
+      renderAll();
+    }
+
+    // Inline edit for flags
+    function editFlags(td, id, currentFlags) {
+      if (td.querySelector(".inline-edit")) return; // already editing
+      const current = parseFlags(currentFlags);
+      td.innerHTML = "";
+      const input = document.createElement("input");
+      input.className = "inline-edit";
+      input.value = current;
+      input.placeholder = "e.g. CGO_ENABLED=0";
+      td.appendChild(input);
+      input.focus();
+      input.select();
+
+      function commit() {
+        const val = input.value.trim();
+        // Convert "CGO_ENABLED=0 FOO=bar" to JSON {"CGO_ENABLED":"0","FOO":"bar"}
+        let flagsJson = "{}";
+        if (val) {
+          const obj = {};
+          val.split(/\s+/).forEach(pair => {
+            const [k, ...rest] = pair.split("=");
+            if (k) obj[k] = rest.join("=") || "1";
+          });
+          flagsJson = JSON.stringify(obj);
+        }
+        applyChangeToDb(id, "build_flags", flagsJson);
+        recordChange(id, "build_flags", flagsJson);
+        renderAll();
+      }
+
+      input.addEventListener("blur", commit);
+      input.addEventListener("keydown", e => {
+        if (e.key === "Enter") { e.preventDefault(); commit(); }
+        if (e.key === "Escape") { renderAll(); }
+      });
+    }
 
     async function init() {
       try {
@@ -321,7 +655,8 @@
         if (!showInternal && !r.is_primary) return false;
         if (statusFilter !== "all") {
           if (statusFilter === "unknown" && r.build_status !== "unknown" && r.build_status !== "pending") return false;
-          if (statusFilter !== "unknown" && r.build_status !== statusFilter) return false;
+          if (statusFilter === "regressed" && r.build_status !== "regressed") return false;
+          if (statusFilter !== "unknown" && statusFilter !== "regressed" && r.build_status !== statusFilter) return false;
         }
         if (query) {
           const hay = `${r.name} ${r.package} ${r.description || ""}`.toLowerCase();
@@ -362,17 +697,22 @@
       // Stats
       const confirmed = filtered.filter(r => r.build_status === "confirmed").length;
       const failed = filtered.filter(r => r.build_status === "failed").length;
+      const regressed = filtered.filter(r => r.build_status === "regressed").length;
 
       const pageInfo = perPage > 0
         ? `${total} packages found. Page ${currentPage} of ${totalPages}.`
         : `${total} packages found.`;
 
+      let statsHtml =
+        `<span class="confirmed-count">${confirmed} confirmed</span>` +
+        `<span class="failed-count">${failed} failed</span>`;
+      if (regressed > 0) {
+        statsHtml += `<span style="color:var(--regressed)">${regressed} regressed</span>`;
+      }
+
       document.getElementById("resultsInfo").innerHTML =
         `<div>${pageInfo}</div>` +
-        `<div class="stats-inline">` +
-          `<span class="confirmed-count">${confirmed} confirmed</span>` +
-          `<span class="failed-count">${failed} failed</span>` +
-        `</div>`;
+        `<div class="stats-inline">${statsHtml}</div>`;
 
       // Pagination
       let paginationHtml = "";
@@ -408,22 +748,48 @@
 
       for (const r of pageRows) {
         const statusCls = r.build_status === "confirmed" ? "status-confirmed"
-          : r.build_status === "failed" ? "status-failed" : "status-unknown";
+          : r.build_status === "failed" ? "status-failed"
+          : r.build_status === "regressed" ? "status-regressed" : "status-unknown";
         const flags = parseFlags(r.build_flags);
         const installPkg = `go install ${r.package}@${r.version || "latest"}`;
         const fullCmd = flags ? flags + " " + installPkg : installPkg;
+        const dirty = pendingChanges.has(r.id);
+        const primaryIcon = r.is_primary ? "★" : "☆";
+        const primaryColor = r.is_primary ? "var(--primary-icon-active)" : "var(--primary-icon)";
 
         html += "<tr>";
-        html += `<td class="name-cell col-name"><a href="${r.repo_url || "#"}" target="_blank" rel="noopener">${esc(r.name)}</a></td>`;
+
+        // Name + primary toggle
+        html += `<td class="name-cell col-name">`;
+        html += `<a href="${r.repo_url || "#"}" target="_blank" rel="noopener">${esc(r.name)}</a>`;
+        html += `<span class="primary-toggle" style="color:${primaryColor}" onclick="togglePrimary(${r.id},${r.is_primary})" title="${r.is_primary ? "Primary (click to unmark)" : "Not primary (click to mark)"}">${primaryIcon}</span>`;
+        html += `</td>`;
+
         html += `<td class="col-version">${esc(r.version || "latest")}</td>`;
         html += `<td class="stars-cell col-stars">${(r.stars || 0).toLocaleString()}</td>`;
-        html += `<td class="col-status ${statusCls}">${r.build_status || "unknown"}</td>`;
+
+        // Status (clickable in edit mode)
+        if (editMode) {
+          html += `<td class="col-status editable ${statusCls}" onclick="cycleStatus(${r.id},'${r.build_status || "unknown"}')" title="Click to cycle status">${r.build_status || "unknown"}</td>`;
+        } else {
+          html += `<td class="col-status ${statusCls}">${r.build_status || "unknown"}</td>`;
+        }
+
         html += `<td class="desc-cell col-desc" title="${esc(r.description || "")}">${esc(r.description || "")}</td>`;
-        html += `<td class="install-cell col-install">`;
+
+        // Install (flags editable in edit mode)
+        html += `<td class="install-cell col-install" data-id="${r.id}" data-flags='${esc(r.build_flags || "{}")}'>`;
         html += `<button class="copy-btn" onclick="copyCmd(this,'${escAttr(fullCmd)}')">Copy</button> `;
-        if (flags) html += `<span class="flags">${esc(flags)}</span> `;
+        if (editMode) {
+          html += `<span class="editable flags-edit" onclick="editFlags(this.closest('td'),${r.id},'${escAttr(r.build_flags || "{}") }')" title="Click to edit flags">`;
+          html += flags ? `<span class="flags">${esc(flags)}</span>` : `<span style="color:var(--text-muted);font-style:italic">+flags</span>`;
+          html += `</span> `;
+        } else {
+          if (flags) html += `<span class="flags">${esc(flags)}</span> `;
+        }
         html += `<span class="cmd">${esc(installPkg)}</span>`;
         html += `</td>`;
+
         html += "</tr>";
       }
 
@@ -433,7 +799,6 @@
 
     function renderPagination(current, total) {
       let html = '<div style="margin-top:8px;font-size:12px;">';
-      const maxVisible = 7;
       const pages = [];
 
       pages.push(1);
@@ -447,7 +812,7 @@
       if (current > 1) html += `<a href="#" onclick="goPage(${current-1});return false">Prev</a> `;
       for (const p of pages) {
         if (p === "...") { html += ".. "; continue; }
-        if (p === current) html += `<b style="color:#eee">${p}</b> `;
+        if (p === current) html += `<b style="color:var(--pagination-bold)">${p}</b> `;
         else html += `<a href="#" onclick="goPage(${p});return false">${p}</a> `;
       }
       if (current < total) html += `<a href="#" onclick="goPage(${current+1});return false">Next</a>`;
@@ -504,12 +869,19 @@
         sortCol = col;
         sortDir = col === "stars" ? "desc" : "asc";
       }
-      // Sync the sort dropdown
       const sel = document.getElementById("sortSelect");
       for (const opt of sel.options) {
         if (opt.value === sortCol) { sel.value = sortCol; break; }
       }
       renderAll();
+    });
+
+    // Warn on navigation with unsaved changes
+    window.addEventListener("beforeunload", e => {
+      if (pendingChanges.size > 0) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
     });
 
     init();

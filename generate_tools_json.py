@@ -199,7 +199,7 @@ def init_database(db_path: str) -> sqlite3.Connection:
             stars INTEGER DEFAULT 0,
             is_primary INTEGER DEFAULT 1,
             build_status TEXT DEFAULT 'unknown'
-                CHECK(build_status IN ('unknown','confirmed','failed','pending')),
+                CHECK(build_status IN ('unknown','confirmed','failed','pending','regressed')),
             build_flags TEXT DEFAULT '{}',
             build_error TEXT,
             last_verified TIMESTAMP,

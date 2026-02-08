@@ -17,12 +17,14 @@ var (
 	verifyBatchSize int
 	verifyDatabase  string
 	verifyReverify  bool
+	verifyRecheck   bool
 )
 
 func init() {
 	verifyCmd.Flags().IntVarP(&verifyBatchSize, "batch-size", "n", 50, "Number of packages to verify")
 	verifyCmd.Flags().StringVarP(&verifyDatabase, "database", "d", "", "Path to database.db (default: ~/.config/gomanager/database.db)")
 	verifyCmd.Flags().BoolVarP(&verifyReverify, "reverify", "r", false, "Also re-verify previously failed packages")
+	verifyCmd.Flags().BoolVar(&verifyRecheck, "recheck", false, "Re-verify confirmed packages that received version updates")
 	rootCmd.AddCommand(verifyCmd)
 }
 
@@ -47,6 +49,11 @@ This can be run locally or in CI.`,
 		}
 		defer conn.Close()
 
+		// Ensure schema supports 'regressed' status
+		if err := db.MigrateSchema(conn); err != nil {
+			return fmt.Errorf("schema migration failed: %w", err)
+		}
+
 		statuses := []string{"unknown", "pending"}
 		if verifyReverify {
 			statuses = append(statuses, "failed")
@@ -57,14 +64,26 @@ This can be run locally or in CI.`,
 			return fmt.Errorf("query failed: %w", err)
 		}
 
+		// If --recheck, also include confirmed packages that got version updates
+		if verifyRecheck {
+			stale, err := db.GetStaleConfirmed(conn, verifyBatchSize)
+			if err != nil {
+				return fmt.Errorf("stale confirmed query failed: %w", err)
+			}
+			if len(stale) > 0 {
+				fmt.Printf("Found %d confirmed packages with version updates to re-check\n", len(stale))
+				binaries = append(binaries, stale...)
+			}
+		}
+
 		if len(binaries) == 0 {
 			fmt.Println("No packages to verify.")
 			return nil
 		}
 
-		fmt.Printf("Verifying %d packages (statuses: %s)\n\n", len(binaries), strings.Join(statuses, ", "))
+		fmt.Printf("Verifying %d packages\n\n", len(binaries))
 
-		confirmed, failed := 0, 0
+		confirmedCount, failedCount, regressedCount := 0, 0, 0
 
 		for i, b := range binaries {
 			version := b.Version
@@ -85,7 +104,7 @@ This can be run locally or in CI.`,
 			}
 
 			if ok {
-				confirmed++
+				confirmedCount++
 				flagsJSON := marshalFlags(resultFlags)
 				fmt.Printf("  ✓ confirmed")
 				if flagsJSON != "{}" {
@@ -96,15 +115,24 @@ This can be run locally or in CI.`,
 					fmt.Printf("  Warning: failed to update database: %v\n", err)
 				}
 			} else {
-				failed++
-				fmt.Printf("  ✗ failed: %s\n", truncate(buildErr, 200))
-				if err := db.UpdateBuildResult(conn, b.ID, "failed", b.BuildFlags, buildErr); err != nil {
+				// If this was a previously confirmed package, it's a regression
+				status := "failed"
+				if b.BuildStatus == "confirmed" {
+					status = "regressed"
+					regressedCount++
+					fmt.Printf("  ⚠ REGRESSED: %s\n", truncate(buildErr, 200))
+				} else {
+					failedCount++
+					fmt.Printf("  ✗ failed: %s\n", truncate(buildErr, 200))
+				}
+				if err := db.UpdateBuildResult(conn, b.ID, status, b.BuildFlags, buildErr); err != nil {
 					fmt.Printf("  Warning: failed to update database: %v\n", err)
 				}
 			}
 		}
 
-		fmt.Printf("\nDone. Confirmed: %d, Failed: %d, Total: %d\n", confirmed, failed, len(binaries))
+		fmt.Printf("\nDone. Confirmed: %d, Failed: %d, Regressed: %d, Total: %d\n",
+			confirmedCount, failedCount, regressedCount, len(binaries))
 		return nil
 	},
 }
