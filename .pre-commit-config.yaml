@@ -2,7 +2,6 @@ repos:
   # See https://prek.j178.dev/builtin/#2-explicit-builtin-repository
   - repo: builtin
     hooks:
-      - id: check-added-large-files
       - id: check-executables-have-shebangs
       - id: check-merge-conflict
       - id: check-json

@@ -122,37 +122,50 @@ def has_goreleaser_config(owner: str, repo: str, headers: dict[str, str]) -> boo
 
 def find_cli_entrypoints(
     owner: str, repo: str, repo_name: str, headers: dict[str, str]
-) -> list[tuple[str, str]]:
+) -> list[tuple[str, str, bool]]:
     """
     Find CLI entrypoints in a Go repository using the Contents API.
-    Returns list of tuples: (binary_name, package_path_suffix)
-    - For cmd/foo: ("foo", "cmd/foo")
-    - For root main.go: (repo_name, "")
-    """
-    entrypoints: list[tuple[str, str]] = []
+    Returns list of tuples: (binary_name, package_path_suffix, is_primary)
+    - For root main.go: (repo_name, "", True)
+    - For cmd/foo matching repo name: ("foo", "cmd/foo", True)
+    - For cmd/foo not matching: ("foo", "cmd/foo", False)
+    - For goreleaser fallback: (repo_name, "", True)
 
-    # First, check for cmd/ directory (standard Go layout)
+    is_primary indicates this is the main user-facing binary from the repo,
+    not an internal tool/helper. This can be manually overridden in the database.
+    """
+    entrypoints: list[tuple[str, str, bool]] = []
+
+    # Check for root-level main.go (always primary)
+    has_root = check_file_exists(owner, repo, "main.go", headers)
+    if has_root:
+        entrypoints.append((repo_name, "", True))
+
+    # Check for cmd/ directory (standard Go layout)
+    cmd_dirs: list[str] = []
     url = f"https://api.github.com/repos/{owner}/{repo}/contents/cmd"
     r = api_get(url, headers)
     if r.status_code == 200:
         data = r.json()
         if isinstance(data, list):
             cmd_dirs = [item["name"] for item in data if item["type"] == "dir"]
-            for cmd in cmd_dirs:
-                entrypoints.append((cmd, f"cmd/{cmd}"))
-            if entrypoints:
-                return entrypoints
 
-    # If no cmd/ directory, check for root-level main.go
-    if check_file_exists(owner, repo, "main.go", headers):
-        entrypoints.append((repo_name, ""))
+    if cmd_dirs:
+        # If there's only one cmd/ entry, it's primary (unless root main.go already is)
+        # If multiple, only the one matching the repo name is primary
+        for cmd in cmd_dirs:
+            if len(cmd_dirs) == 1 and not has_root:
+                is_primary = True
+            else:
+                is_primary = cmd.lower() == repo_name.lower()
+            entrypoints.append((cmd, f"cmd/{cmd}", is_primary))
+
+    if entrypoints:
         return entrypoints
 
     # Check if goreleaser exists (implies binaries even if we can't find entrypoints easily)
     if has_goreleaser_config(owner, repo, headers):
-        # Assume root package is the binary
-        entrypoints.append((repo_name, ""))
-        return entrypoints
+        entrypoints.append((repo_name, "", True))
 
     return entrypoints
 
@@ -184,6 +197,7 @@ def init_database(db_path: str) -> sqlite3.Connection:
             description TEXT,
             repo_url TEXT,
             stars INTEGER DEFAULT 0,
+            is_primary INTEGER DEFAULT 1,
             build_status TEXT DEFAULT 'unknown'
                 CHECK(build_status IN ('unknown','confirmed','failed','pending')),
             build_flags TEXT DEFAULT '{}',
@@ -219,13 +233,18 @@ def upsert_binary(
     description: str,
     repo_url: str,
     stars: int,
+    is_primary: bool,
 ) -> bool:
-    """Insert or update a binary in the database. Returns True if a new row was inserted."""
+    """Insert or update a binary in the database. Returns True if a new row was inserted.
+
+    Note: is_primary is only set on INSERT. On conflict (UPDATE), the existing
+    value is preserved so that manual curation is not overwritten by the scanner.
+    """
     cursor = conn.cursor()
     cursor.execute(
         """
-        INSERT INTO binaries (name, package, version, description, repo_url, stars)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO binaries (name, package, version, description, repo_url, stars, is_primary)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(package) DO UPDATE SET
             version = excluded.version,
             description = excluded.description,
@@ -233,7 +252,7 @@ def upsert_binary(
             stars = excluded.stars,
             updated_at = CURRENT_TIMESTAMP
         """,
-        (name, package, version, description, repo_url, stars),
+        (name, package, version, description, repo_url, stars, int(is_primary)),
     )
     conn.commit()
     return cursor.lastrowid is not None and cursor.rowcount == 1
@@ -287,7 +306,7 @@ def main() -> int:
         entrypoints = find_cli_entrypoints(owner, repo_name, repo_name, headers)
         if entrypoints:
             version = get_latest_release(owner, repo_name, headers)
-            for binary_name, package_suffix in entrypoints:
+            for binary_name, package_suffix, is_primary in entrypoints:
                 if package_suffix:
                     package_path = f"github.com/{owner}/{repo_name}/{package_suffix}"
                 else:
@@ -302,6 +321,7 @@ def main() -> int:
                         description=description,
                         repo_url=repo_url,
                         stars=stars,
+                        is_primary=is_primary,
                     )
                     existing_packages.add(package_path)
                     new_binaries_count += 1

@@ -19,6 +19,7 @@ type Binary struct {
 	Description string
 	RepoURL     string
 	Stars       int
+	IsPrimary   bool
 	BuildStatus string
 	BuildFlags  string
 	BuildError  string
@@ -58,6 +59,13 @@ func OpenPath(path string) (*sql.DB, error) {
 	return conn, nil
 }
 
+// selectCols is the standard column list for binary queries.
+const selectCols = `id, name, package, COALESCE(version,'latest'),
+        COALESCE(description,''), COALESCE(repo_url,''),
+        COALESCE(stars,0), COALESCE(is_primary,1),
+        COALESCE(build_status,'unknown'),
+        COALESCE(build_flags,'{}'), COALESCE(build_error,'')`
+
 // GetUnverified returns binaries that need build verification.
 func GetUnverified(conn *sql.DB, statuses []string, limit int) ([]Binary, error) {
 	placeholders := make([]string, len(statuses))
@@ -69,15 +77,11 @@ func GetUnverified(conn *sql.DB, statuses []string, limit int) ([]Binary, error)
 	args = append(args, limit)
 
 	query := fmt.Sprintf(
-		`SELECT id, name, package, COALESCE(version,'latest'),
-		        COALESCE(description,''), COALESCE(repo_url,''),
-		        COALESCE(stars,0), COALESCE(build_status,'unknown'),
-		        COALESCE(build_flags,'{}'), COALESCE(build_error,'')
-		 FROM binaries
+		`SELECT %s FROM binaries
 		 WHERE build_status IN (%s)
 		 ORDER BY stars DESC
 		 LIMIT ?`,
-		strings.Join(placeholders, ","),
+		selectCols, strings.Join(placeholders, ","),
 	)
 
 	rows, err := conn.Query(query, args...)
@@ -106,13 +110,10 @@ func UpdateBuildResult(conn *sql.DB, id int, status string, flags string, buildE
 func Search(conn *sql.DB, query string) ([]Binary, error) {
 	q := "%" + strings.ToLower(query) + "%"
 	rows, err := conn.Query(
-		`SELECT id, name, package, COALESCE(version,'latest'),
-		        COALESCE(description,''), COALESCE(repo_url,''),
-		        COALESCE(stars,0), COALESCE(build_status,'unknown'),
-		        COALESCE(build_flags,'{}'), COALESCE(build_error,'')
-		 FROM binaries
-		 WHERE LOWER(name) LIKE ? OR LOWER(package) LIKE ? OR LOWER(description) LIKE ?
-		 ORDER BY stars DESC`,
+		fmt.Sprintf(
+			`SELECT %s FROM binaries
+			 WHERE LOWER(name) LIKE ? OR LOWER(package) LIKE ? OR LOWER(description) LIKE ?
+			 ORDER BY stars DESC`, selectCols),
 		q, q, q,
 	)
 	if err != nil {
@@ -125,35 +126,25 @@ func Search(conn *sql.DB, query string) ([]Binary, error) {
 // GetByName finds a binary by exact name.
 func GetByName(conn *sql.DB, name string) (*Binary, error) {
 	row := conn.QueryRow(
-		`SELECT id, name, package, COALESCE(version,'latest'),
-		        COALESCE(description,''), COALESCE(repo_url,''),
-		        COALESCE(stars,0), COALESCE(build_status,'unknown'),
-		        COALESCE(build_flags,'{}'), COALESCE(build_error,'')
-		 FROM binaries WHERE LOWER(name) = LOWER(?)
-		 ORDER BY stars DESC LIMIT 1`,
+		fmt.Sprintf(
+			`SELECT %s FROM binaries WHERE LOWER(name) = LOWER(?)
+			 ORDER BY stars DESC LIMIT 1`, selectCols),
 		name,
 	)
-	var b Binary
-	err := row.Scan(&b.ID, &b.Name, &b.Package, &b.Version,
-		&b.Description, &b.RepoURL, &b.Stars, &b.BuildStatus,
-		&b.BuildFlags, &b.BuildError)
+	b, err := scanBinary(row)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("binary %q not found in database", name)
 	}
 	if err != nil {
 		return nil, err
 	}
-	return &b, nil
+	return b, nil
 }
 
 // ListAll returns all binaries ordered by stars descending.
 func ListAll(conn *sql.DB) ([]Binary, error) {
 	rows, err := conn.Query(
-		`SELECT id, name, package, COALESCE(version,'latest'),
-		        COALESCE(description,''), COALESCE(repo_url,''),
-		        COALESCE(stars,0), COALESCE(build_status,'unknown'),
-		        COALESCE(build_flags,'{}'), COALESCE(build_error,'')
-		 FROM binaries ORDER BY stars DESC`,
+		fmt.Sprintf(`SELECT %s FROM binaries ORDER BY stars DESC`, selectCols),
 	)
 	if err != nil {
 		return nil, err
@@ -162,15 +153,27 @@ func ListAll(conn *sql.DB) ([]Binary, error) {
 	return scanBinaries(rows)
 }
 
+func scanBinary(row *sql.Row) (*Binary, error) {
+	var b Binary
+	var isPrimary int
+	err := row.Scan(&b.ID, &b.Name, &b.Package, &b.Version,
+		&b.Description, &b.RepoURL, &b.Stars, &isPrimary,
+		&b.BuildStatus, &b.BuildFlags, &b.BuildError)
+	b.IsPrimary = isPrimary != 0
+	return &b, err
+}
+
 func scanBinaries(rows *sql.Rows) ([]Binary, error) {
 	var result []Binary
 	for rows.Next() {
 		var b Binary
+		var isPrimary int
 		if err := rows.Scan(&b.ID, &b.Name, &b.Package, &b.Version,
-			&b.Description, &b.RepoURL, &b.Stars, &b.BuildStatus,
-			&b.BuildFlags, &b.BuildError); err != nil {
+			&b.Description, &b.RepoURL, &b.Stars, &isPrimary,
+			&b.BuildStatus, &b.BuildFlags, &b.BuildError); err != nil {
 			return nil, err
 		}
+		b.IsPrimary = isPrimary != 0
 		result = append(result, b)
 	}
 	return result, rows.Err()
@@ -216,4 +219,3 @@ func (b *Binary) EnvFlags() string {
 	}
 	return strings.Join(parts, " ")
 }
-

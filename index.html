@@ -99,6 +99,17 @@
       color: #fff;
       border-color: var(--accent);
     }
+    .toggle-label {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .toggle-label input { cursor: pointer; }
     .stats {
       display: flex;
       gap: 1.5rem;
@@ -248,6 +259,7 @@
       <button class="filter-btn" data-filter="confirmed">Confirmed</button>
       <button class="filter-btn" data-filter="failed">Failed</button>
       <button class="filter-btn" data-filter="unknown">Unknown</button>
+      <label class="toggle-label"><input type="checkbox" id="showAll" /> Show internal commands</label>
     </div>
 
     <div id="output"><div class="loading">Loading database...</div></div>
@@ -280,6 +292,7 @@
     function loadData() {
       const result = db.exec(
         `SELECT id, name, package, version, description, repo_url, stars,
+                COALESCE(is_primary, 1) as is_primary,
                 build_status, build_flags, build_error, last_verified
          FROM binaries ORDER BY stars DESC`
       );
@@ -312,7 +325,10 @@
 
     function getFilteredRows() {
       const query = document.getElementById("search").value.toLowerCase();
+      const showAll = document.getElementById("showAll").checked;
       return allRows.filter(r => {
+        // Hide non-primary (internal) packages unless toggled on
+        if (!showAll && !r.is_primary) return false;
         if (activeFilter !== "all") {
           if (activeFilter === "unknown" && r.build_status !== "unknown" && r.build_status !== "pending") return false;
           if (activeFilter !== "unknown" && r.build_status !== activeFilter) return false;
@@ -414,6 +430,7 @@
 
     // Event listeners
     document.getElementById("search").addEventListener("input", renderTable);
+    document.getElementById("showAll").addEventListener("change", renderTable);
 
     document.querySelectorAll(".filter-btn").forEach(btn => {
       btn.addEventListener("click", () => {
