@@ -14,7 +14,7 @@ var rootCmd = &cobra.Command{
 	Long: `GoManager is a package manager for Go binaries.
 
 It downloads a curated database of Go CLI tools and lets you
-search, install, upgrade, and export them as PKGBUILDs.`,
+search, install, upgrade, and manage them.`,
 }
 
 // Execute runs the root command.
