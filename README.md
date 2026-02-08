@@ -66,7 +66,7 @@ gomanager verify -d ./database.db --reverify   # also retry failed packages
 
 ### Web frontend (`index.html`)
 
-A static single-page app that loads `database.db` with sql.js. Features search, filtering by build status, sortable columns, copy-to-clipboard install commands, and dark mode. Host it with GitHub Pages or any static file server.
+A static single-page app that loads `database.db` with [sql.js](https://sql.js.org/). Features search, filtering by build status, sortable columns, copy-to-clipboard install commands, and dark mode. Host it with GitHub Pages or any static file server.
 
 To preview locally:
 
