@@ -57,6 +57,14 @@ gomanager verify -d ./database.db --reverify   # also retry failed packages
 
 A static single-page app that loads `database.db` with sql.js. Features search, filtering by build status, sortable columns, copy-to-clipboard install commands, and dark mode. Host it with GitHub Pages or any static file server.
 
+To preview locally:
+
+```bash
+./serve
+```
+
+This starts a local HTTP server on the nearest available port (starting at 8000) and opens it in your browser.
+
 ### GitHub Actions
 
 - **`.github/workflows/scan.yml`** — Runs the scanner daily, commits updated `database.db` and `scanned_repos.json`.

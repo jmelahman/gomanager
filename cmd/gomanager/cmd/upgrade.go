@@ -70,4 +70,3 @@ var upgradeCmd = &cobra.Command{
 		return nil
 	},
 }
-

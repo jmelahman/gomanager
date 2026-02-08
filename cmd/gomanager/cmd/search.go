@@ -48,4 +48,3 @@ var searchCmd = &cobra.Command{
 		return nil
 	},
 }
-

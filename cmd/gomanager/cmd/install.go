@@ -87,4 +87,3 @@ func runGoInstall(b *db.Binary) error {
 	fmt.Printf("Successfully installed %s\n", b.Name)
 	return nil
 }
-

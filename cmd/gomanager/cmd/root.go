@@ -17,4 +17,3 @@ search, install, upgrade, and export them as PKGBUILDs.`,
 func Execute() error {
 	return rootCmd.Execute()
 }
-

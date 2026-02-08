@@ -54,4 +54,3 @@ var updateDBCmd = &cobra.Command{
 		return nil
 	},
 }
-

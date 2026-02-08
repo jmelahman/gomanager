@@ -93,4 +93,3 @@ func Generate(w io.Writer, b *db.Binary) error {
 	}
 	return tmpl.Execute(w, data)
 }
-

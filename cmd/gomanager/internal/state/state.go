@@ -83,4 +83,3 @@ func (s *State) MarkInstalled(name, pkg, version string) {
 func (s *State) Remove(name string) {
 	delete(s.Installed, name)
 }
-

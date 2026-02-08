@@ -59,4 +59,3 @@ var exportPkgbuildCmd = &cobra.Command{
 		return pkgbuild.Generate(os.Stdout, b)
 	},
 }
-

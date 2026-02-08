@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+PORT=8000
+while ss -tlnp 2>/dev/null | grep -q ":${PORT} " || ss -tln 2>/dev/null | grep -q ":${PORT} "; do
+  PORT=$((PORT + 1))
+done
+
+python -m http.server "$PORT" &
+# shellcheck disable=SC2064 # We want this to expand immediately.
+trap "kill -9 $!" EXIT
+xdg-open "http://localhost:${PORT}"
+
+# Leave the script running to avoid the trap
+cat >/dev/null

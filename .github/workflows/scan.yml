@@ -34,4 +34,3 @@ jobs:
           git add database.db scanned_repos.json
           git diff --cached --quiet || git commit -m "chore: update binary database [skip ci]"
           git push
-
