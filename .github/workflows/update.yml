@@ -23,6 +23,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5
         with:
@@ -31,10 +33,11 @@ jobs:
       - name: Update package versions
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BATCH_SIZE: ${{ github.event.inputs.batch_size || '100' }}
         run: |
           go run ./cmd/gomanager-admin update-versions \
             --database ./database.db \
-            -n ${{ github.event.inputs.batch_size || '100' }}
+            -n "${BATCH_SIZE}"
 
       - name: Fix module paths (v2+ modules)
         env:
@@ -50,11 +53,13 @@ jobs:
             -n 50
 
       - name: Re-verify updated packages
+        env:
+          VERIFY_BATCH_SIZE: ${{ github.event.inputs.verify_batch_size || '50' }}
         run: |
           go run ./cmd/gomanager-admin verify \
             --database ./database.db \
             --recheck \
-            -n ${{ github.event.inputs.verify_batch_size || '50' }}
+            -n "${VERIFY_BATCH_SIZE}"
 
       - name: Commit results
         run: |
