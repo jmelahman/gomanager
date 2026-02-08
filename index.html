@@ -599,6 +599,33 @@
       renderAll();
     }
 
+    // Inline edit for description
+    function editDescription(td, id, currentDesc) {
+      if (td.querySelector(".inline-edit")) return;
+      td.innerHTML = "";
+      const input = document.createElement("input");
+      input.className = "inline-edit";
+      input.value = currentDesc;
+      input.placeholder = "Package description...";
+      input.style.fontFamily = "inherit";
+      td.appendChild(input);
+      input.focus();
+      input.select();
+
+      function commit() {
+        const val = input.value.trim();
+        applyChangeToDb(id, "description", val);
+        recordChange(id, "description", val);
+        renderAll();
+      }
+
+      input.addEventListener("blur", commit);
+      input.addEventListener("keydown", e => {
+        if (e.key === "Enter") { e.preventDefault(); commit(); }
+        if (e.key === "Escape") { renderAll(); }
+      });
+    }
+
     // Inline edit for flags
     function editFlags(td, id, currentFlags) {
       if (td.querySelector(".inline-edit")) return; // already editing
@@ -801,7 +828,11 @@
           html += `<td class="col-status ${statusCls}">${r.build_status || "unknown"}</td>`;
         }
 
-        html += `<td class="desc-cell col-desc" title="${esc(r.description || "")}">${esc(r.description || "")}</td>`;
+        if (editMode) {
+          html += `<td class="desc-cell col-desc editable" onclick="editDescription(this,${r.id},'${escAttr(r.description || "")}')" title="Click to edit description">${esc(r.description || "") || '<span style="color:var(--text-muted);font-style:italic">+desc</span>'}</td>`;
+        } else {
+          html += `<td class="desc-cell col-desc" title="${esc(r.description || "")}">${esc(r.description || "")}</td>`;
+        }
 
         // Install (flags editable in edit mode)
         html += `<td class="install-cell col-install" data-id="${r.id}" data-flags='${esc(r.build_flags || "{}")}'>`;
