@@ -33,11 +33,15 @@ var licenseNames = []string{"LICENSE", "LICENSE.md", "LICENSE.txt", "LICENCE", "
 // readmeNames are filenames to look for as readme files, in priority order.
 var readmeNames = []string{"README.md", "README", "README.txt", "README.rst"}
 
-// fetchRepoFiles lists the root directory of a GitHub repository and returns
-// the set of filenames found. Returns nil (no error) if the API call fails,
-// so the caller can gracefully degrade to no license/readme lines.
-func fetchRepoFiles(owner, repo, token string) map[string]bool {
+// fetchRepoFiles lists the root directory of a GitHub repository at the given
+// ref (tag/branch/commit). If ref is empty, the default branch is used.
+// Returns nil (no error) if the API call fails, so the caller can gracefully
+// degrade to no license/readme lines.
+func fetchRepoFiles(owner, repo, token, ref string) map[string]bool {
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/", owner, repo)
+	if ref != "" {
+		url += "?ref=" + ref
+	}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil
@@ -75,8 +79,8 @@ func fetchRepoFiles(owner, repo, token string) map[string]bool {
 	return files
 }
 
-// detectRepoFiles looks up the GitHub repository for the given binary and
-// returns the PKGBUILD options with detected license and readme filenames.
+// detectRepoFiles looks up the GitHub repository for the given binary at its
+// tagged version and returns PKGBUILD options with detected file info.
 func detectRepoFiles(b *db.Binary) *pkgbuild.Options {
 	owner, repo, ok := parseGitHubOwnerRepo(b.Package)
 	if !ok {
@@ -84,12 +88,22 @@ func detectRepoFiles(b *db.Binary) *pkgbuild.Options {
 	}
 
 	token := os.Getenv("GITHUB_TOKEN")
-	files := fetchRepoFiles(owner, repo, token)
+	// Use the version tag so we see files as they were at release time
+	ref := b.Version
+	files := fetchRepoFiles(owner, repo, token, ref)
 	if files == nil {
 		return nil
 	}
 
-	opts := &pkgbuild.Options{}
+	return buildPkgbuildOpts(files)
+}
+
+// buildPkgbuildOpts inspects a repo file listing and returns PKGBUILD options
+// with detected license, readme, and go.mod presence.
+func buildPkgbuildOpts(files map[string]bool) *pkgbuild.Options {
+	opts := &pkgbuild.Options{
+		HasGoMod: files["go.mod"],
+	}
 	for _, name := range licenseNames {
 		if files[name] {
 			opts.LicenseFile = name

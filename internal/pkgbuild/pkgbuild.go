@@ -40,8 +40,10 @@ build() {
 {{- end}}
   go build \
     -trimpath \
+{{- if .HasGoMod}}
     -mod=readonly \
     -modcacherw \
+{{- end}}
     -ldflags='-s -w' \
     -o $pkgname \
     {{.BuildPath}}
@@ -68,6 +70,9 @@ type Options struct {
 	// ReadmeFile is the exact filename of the readme (e.g. "README.md", "README").
 	// If empty, no readme install line is emitted.
 	ReadmeFile string
+	// HasGoMod indicates whether the repository has a go.mod file.
+	// When true, -mod=readonly and -modcacherw flags are included in the build.
+	HasGoMod bool
 }
 
 // TemplateData holds the values for PKGBUILD generation.
@@ -81,6 +86,7 @@ type TemplateData struct {
 	BuildPath   string
 	EnvVars     []string
 	NoCGO       bool
+	HasGoMod    bool
 	LicenseFile string
 	ReadmeFile  string
 }
@@ -162,9 +168,11 @@ func Generate(w io.Writer, b *db.Binary, opts *Options) error {
 	}
 
 	var licenseFile, readmeFile string
+	hasGoMod := true // assume modern project if opts not available
 	if opts != nil {
 		licenseFile = opts.LicenseFile
 		readmeFile = opts.ReadmeFile
+		hasGoMod = opts.HasGoMod
 	}
 
 	data := TemplateData{
@@ -177,6 +185,7 @@ func Generate(w io.Writer, b *db.Binary, opts *Options) error {
 		BuildPath:   buildPath,
 		EnvVars:     envVars,
 		NoCGO:       noCGO,
+		HasGoMod:    hasGoMod,
 		LicenseFile: licenseFile,
 		ReadmeFile:  readmeFile,
 	}

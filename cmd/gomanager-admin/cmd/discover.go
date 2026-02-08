@@ -434,43 +434,18 @@ candidates.`,
 	},
 }
 
-// detectRepoFilesWithToken fetches repo file listing using the provided token.
+// detectRepoFilesWithToken fetches repo file listing at the tagged version.
 func detectRepoFilesWithToken(b *db.Binary, token string) *pkgbuild.Options {
 	owner, repo, ok := parseGitHubOwnerRepo(b.Package)
 	if !ok {
 		return nil
 	}
 
-	files := fetchRepoFiles(owner, repo, token)
+	ref := b.Version
+	files := fetchRepoFiles(owner, repo, token, ref)
 	if files == nil {
 		return nil
 	}
 
-	opts := &pkgbuild.Options{}
-	for _, name := range licenseNames {
-		if files[name] {
-			opts.LicenseFile = name
-			break
-		}
-	}
-	for _, name := range readmeNames {
-		if files[name] {
-			opts.ReadmeFile = name
-			break
-		}
-	}
-
-	if opts.LicenseFile == "" || opts.ReadmeFile == "" {
-		for f := range files {
-			upper := strings.ToUpper(f)
-			if opts.LicenseFile == "" && (strings.HasPrefix(upper, "LICENSE") || strings.HasPrefix(upper, "LICENCE") || upper == "COPYING") {
-				opts.LicenseFile = f
-			}
-			if opts.ReadmeFile == "" && strings.HasPrefix(upper, "README") {
-				opts.ReadmeFile = f
-			}
-		}
-	}
-
-	return opts
+	return buildPkgbuildOpts(files)
 }
