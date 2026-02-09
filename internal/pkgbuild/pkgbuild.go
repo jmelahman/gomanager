@@ -23,7 +23,7 @@ pkgrel=1
 pkgdesc="{{.PkgDesc}}"
 arch=('x86_64' 'aarch64')
 url="{{.URL}}"
-license=('unknown')
+license=('{{.LicenseID}}')
 {{- if .NoCGO}}
 depends=()
 {{- else}}
@@ -64,6 +64,9 @@ package() {
 // Options holds optional metadata that can be discovered from the repository
 // prior to PKGBUILD generation (e.g. via the GitHub API).
 type Options struct {
+	// LicenseID is the SPDX license identifier (e.g. "MIT", "Apache-2.0").
+	// If empty, "unknown" is used.
+	LicenseID string
 	// LicenseFile is the exact filename of the license (e.g. "LICENSE", "LICENSE.md").
 	// If empty, no license install line is emitted.
 	LicenseFile string
@@ -87,6 +90,7 @@ type TemplateData struct {
 	EnvVars     []string
 	NoCGO       bool
 	HasGoMod    bool
+	LicenseID   string
 	LicenseFile string
 	ReadmeFile  string
 }
@@ -167,12 +171,16 @@ func Generate(w io.Writer, b *db.Binary, opts *Options) error {
 		}
 	}
 
-	var licenseFile, readmeFile string
+	var licenseID, licenseFile, readmeFile string
 	hasGoMod := true // assume modern project if opts not available
 	if opts != nil {
+		licenseID = opts.LicenseID
 		licenseFile = opts.LicenseFile
 		readmeFile = opts.ReadmeFile
 		hasGoMod = opts.HasGoMod
+	}
+	if licenseID == "" {
+		licenseID = "unknown"
 	}
 
 	data := TemplateData{
@@ -186,6 +194,7 @@ func Generate(w io.Writer, b *db.Binary, opts *Options) error {
 		EnvVars:     envVars,
 		NoCGO:       noCGO,
 		HasGoMod:    hasGoMod,
+		LicenseID:   licenseID,
 		LicenseFile: licenseFile,
 		ReadmeFile:  readmeFile,
 	}

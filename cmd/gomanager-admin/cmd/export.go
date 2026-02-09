@@ -79,6 +79,50 @@ func fetchRepoFiles(owner, repo, token, ref string) map[string]bool {
 	return files
 }
 
+// fetchLicenseID queries the GitHub license detection API for the given
+// repository at the specified ref and returns the SPDX license identifier
+// (e.g. "MIT", "Apache-2.0"). Returns an empty string on failure.
+func fetchLicenseID(owner, repo, token, ref string) string {
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/license", owner, repo)
+	if ref != "" {
+		url += "?ref=" + ref
+	}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return ""
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "token "+token)
+	}
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return ""
+	}
+
+	var result struct {
+		License struct {
+			SPDXID string `json:"spdx_id"`
+		} `json:"license"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return ""
+	}
+
+	// GitHub returns "NOASSERTION" when it can't detect the license
+	if result.License.SPDXID == "" || result.License.SPDXID == "NOASSERTION" {
+		return ""
+	}
+	return result.License.SPDXID
+}
+
 // detectRepoFiles looks up the GitHub repository for the given binary at its
 // tagged version and returns PKGBUILD options with detected file info.
 func detectRepoFiles(b *db.Binary) *pkgbuild.Options {
@@ -95,7 +139,14 @@ func detectRepoFiles(b *db.Binary) *pkgbuild.Options {
 		return nil
 	}
 
-	return buildPkgbuildOpts(files)
+	opts := buildPkgbuildOpts(files)
+
+	// Detect the SPDX license identifier from the repository
+	if licenseID := fetchLicenseID(owner, repo, token, ref); licenseID != "" {
+		opts.LicenseID = licenseID
+	}
+
+	return opts
 }
 
 // buildPkgbuildOpts inspects a repo file listing and returns PKGBUILD options
