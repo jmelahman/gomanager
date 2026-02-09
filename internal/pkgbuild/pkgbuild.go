@@ -38,6 +38,10 @@ build() {
 {{- range .EnvVars}}
   export {{.}}
 {{- end}}
+{{- if not .HasGoMod}}
+  go mod init {{.ModulePath}}
+  go mod tidy
+{{- end}}
   go build \
     -trimpath \
 {{- if .HasGoMod}}
@@ -87,6 +91,7 @@ type TemplateData struct {
 	GitURL      string
 	TagPrefix   string
 	BuildPath   string
+	ModulePath  string
 	EnvVars     []string
 	NoCGO       bool
 	HasGoMod    bool
@@ -133,20 +138,24 @@ func Generate(w io.Writer, b *db.Binary, opts *Options) error {
 		tagPrefix = "v"
 	}
 
-	// Determine the build path relative to the repo root.
-	// For root packages (github.com/owner/repo), use "."
-	// For sub-packages (github.com/owner/repo/cmd/foo), use "./cmd/foo"
+	// Determine the module path (e.g. "github.com/owner/repo" or
+	// "github.com/owner/repo/v4") and the build path relative to the repo root.
+	// For root packages (github.com/owner/repo), buildPath is "."
+	// For sub-packages (github.com/owner/repo/cmd/foo), buildPath is "./cmd/foo"
 	buildPath := "."
+	modulePath := strings.Join(strings.SplitN(b.Package, "/", 4)[:3], "/")
 	parts := strings.SplitN(b.Package, "/", 4) // github.com / owner / repo / rest
 	if len(parts) == 4 {
-		// Strip version suffixes like /v4 from the subpath
 		sub := parts[3]
-		// If the sub-path is just a major version (e.g. "v4"), it's still a root build
-		if !regexp.MustCompile(`^v\d+$`).MatchString(sub) {
+		// If the sub-path is just a major version (e.g. "v4"), include it in modulePath
+		if regexp.MustCompile(`^v\d+$`).MatchString(sub) {
+			modulePath = b.Package
+		} else {
 			// Strip leading version prefix if present (e.g. "v4/cmd/foo" -> "cmd/foo")
 			if idx := strings.Index(sub, "/"); idx >= 0 {
 				prefix := sub[:idx]
 				if regexp.MustCompile(`^v\d+$`).MatchString(prefix) {
+					modulePath = modulePath + "/" + prefix
 					sub = sub[idx+1:]
 				}
 			}
@@ -191,6 +200,7 @@ func Generate(w io.Writer, b *db.Binary, opts *Options) error {
 		GitURL:      gitURL,
 		TagPrefix:   tagPrefix,
 		BuildPath:   buildPath,
+		ModulePath:  modulePath,
 		EnvVars:     envVars,
 		NoCGO:       noCGO,
 		HasGoMod:    hasGoMod,
