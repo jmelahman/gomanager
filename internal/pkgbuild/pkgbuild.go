@@ -34,7 +34,7 @@ source=("git+{{.GitURL}}.git#tag={{.TagPrefix}}$pkgver")
 sha256sums=('SKIP')
 
 build() {
-  cd $pkgname
+  cd "$pkgname" || exit
 {{- range .EnvVars}}
   export {{.}}
 {{- end}}
@@ -45,13 +45,13 @@ build() {
     -modcacherw \
 {{- end}}
     -ldflags='-s -w' \
-    -o $pkgname \
+    -o {{.BuildPath}}/$pkgname \
     {{.BuildPath}}
 }
 
 package() {
-  cd $pkgname
-  install -Dm 755 $pkgname -t "$pkgdir/usr/bin"
+  cd "$pkgname" || exit
+  install -Dm 755 {{.BuildPath}}/$pkgname -t "$pkgdir/usr/bin"
 {{- if .LicenseFile}}
   install -Dm 644 {{.LicenseFile}} -t "$pkgdir/usr/share/licenses/$pkgname"
 {{- end}}
