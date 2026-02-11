@@ -9,7 +9,7 @@ on:
       batch_size:
         description: "Number of packages to verify per run"
         required: false
-        default: "50"
+        default: "100"
       reverify:
         description: "Also re-verify previously failed packages"
         required: false
@@ -33,7 +33,7 @@ jobs:
 
       - name: Verify builds
         env:
-          BATCH_SIZE: ${{ github.event.inputs.batch_size || '50' }}
+          BATCH_SIZE: ${{ github.event.inputs.batch_size || '100' }}
           REVERIFY: ${{ github.event.inputs.reverify }}
         run: |
           ARGS="--database ./database.db -n ${BATCH_SIZE}"

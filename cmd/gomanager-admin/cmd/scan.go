@@ -22,13 +22,65 @@ const (
 )
 
 var defaultSearchQueries = []string{
+	// CLI and command-line tools (topic-based)
 	"topic:go+topic:cli",
 	"topic:golang+topic:cli",
+	"topic:go+topic:command-line",
+	"topic:golang+topic:command-line",
+
+	// General tools and utilities
 	"topic:go+topic:tool",
 	"topic:golang+topic:tool",
+	"topic:go+topic:utility",
+	"topic:golang+topic:utility",
+
+	// Developer tools
 	"topic:go+topic:devtools",
+	"topic:golang+topic:devtools",
+	"topic:go+topic:developer-tools",
+	"topic:golang+topic:developer-tools",
+
+	// Terminal and TUI applications
+	"topic:go+topic:terminal",
+	"topic:golang+topic:terminal",
+	"topic:go+topic:tui",
+	"topic:golang+topic:tui",
+
+	// Code quality tools
+	"topic:go+topic:linter",
+	"topic:golang+topic:linter",
+	"topic:go+topic:static-analysis",
+	"topic:golang+topic:formatter",
+
+	// DevOps and infrastructure
+	"topic:go+topic:devops",
+	"topic:golang+topic:devops",
+	"topic:go+topic:infrastructure",
+	"topic:golang+topic:automation",
+
+	// Language-based queries with specific topics
 	"language:go+topic:cli",
 	"language:go+topic:command-line",
+	"language:go+topic:tool",
+	"language:go+topic:devtools",
+	"language:go+topic:developer-tools",
+	"language:go+topic:terminal",
+	"language:go+topic:tui",
+	"language:go+topic:utility",
+	"language:go+topic:linter",
+	"language:go+topic:static-analysis",
+	"language:go+topic:formatter",
+	"language:go+topic:code-generator",
+	"language:go+topic:productivity",
+	"language:go+topic:automation",
+	"language:go+topic:monitoring",
+	"language:go+topic:devops",
+
+	// Broad language-based queries with star filters to find popular Go binaries
+	// that may not have specific topic tags
+	"language:go+stars:>500+topic:cli",
+	"language:go+stars:>500+topic:tool",
+	"language:go+stars:>1000",
 }
 
 var (
@@ -111,56 +163,82 @@ func (s *scanner) checkRateLimit() {
 	resp.Body.Close()
 }
 
+// searchSortOrders defines the sort strategies used for each query.
+// Using multiple sort orders surfaces different repos: "stars" finds popular
+// ones while "updated" finds actively maintained ones that may be less known.
+var searchSortOrders = []string{"stars", "updated"}
+
 // searchRepos discovers Go CLI repositories via the GitHub search API.
+// Each query is run with multiple sort orders and filters out forks and
+// archived repositories at the query level to save API calls.
 func (s *scanner) searchRepos(scannedRepos map[string]bool) ([]githubRepo, error) {
 	seenIDs := make(map[int]bool)
 	var allRepos []githubRepo
 
-	for _, query := range defaultSearchQueries {
-		for page := 1; page <= maxPagesPerQuery; page++ {
-			url := fmt.Sprintf(
-				"https://api.github.com/search/repositories?q=%s&sort=stars&order=desc&per_page=%d&page=%d",
-				query, resultsPerPage, page,
-			)
+	for _, baseQuery := range defaultSearchQueries {
+		// Exclude forks and archived repos at the search level.
+		query := baseQuery + "+fork:false+archived:false"
 
-			resp, err := s.apiGet(url)
-			if err != nil {
-				break
-			}
+		for _, sortOrder := range searchSortOrders {
+			for page := 1; page <= maxPagesPerQuery; page++ {
+				url := fmt.Sprintf(
+					"https://api.github.com/search/repositories?q=%s&sort=%s&order=desc&per_page=%d&page=%d",
+					query, sortOrder, resultsPerPage, page,
+				)
 
-			if resp.StatusCode != 200 {
-				fmt.Printf("Search failed for query=%s page=%d: %d\n", query, page, resp.StatusCode)
-				io.Copy(io.Discard, resp.Body)
+				resp, err := s.apiGet(url)
+				if err != nil {
+					break
+				}
+
+				if resp.StatusCode == 422 {
+					// GitHub returns 422 for invalid/too-complex queries; skip.
+					io.Copy(io.Discard, resp.Body)
+					resp.Body.Close()
+					break
+				}
+
+				if resp.StatusCode != 200 {
+					fmt.Printf("Search failed for query=%s sort=%s page=%d: %d\n",
+						baseQuery, sortOrder, page, resp.StatusCode)
+					io.Copy(io.Discard, resp.Body)
+					resp.Body.Close()
+					break
+				}
+
+				var result struct {
+					TotalCount int          `json:"total_count"`
+					Items      []githubRepo `json:"items"`
+				}
+				err = json.NewDecoder(resp.Body).Decode(&result)
 				resp.Body.Close()
-				break
-			}
+				if err != nil {
+					break
+				}
 
-			var result struct {
-				Items []githubRepo `json:"items"`
-			}
-			err = json.NewDecoder(resp.Body).Decode(&result)
-			resp.Body.Close()
-			if err != nil {
-				break
-			}
+				if len(result.Items) == 0 {
+					break
+				}
 
-			if len(result.Items) == 0 {
-				break
-			}
+				for _, item := range result.Items {
+					repoKey := item.Owner.Login + "/" + item.Name
+					if !seenIDs[item.ID] && !scannedRepos[repoKey] {
+						seenIDs[item.ID] = true
+						allRepos = append(allRepos, item)
+					}
+				}
 
-			for _, item := range result.Items {
-				repoKey := item.Owner.Login + "/" + item.Name
-				if !seenIDs[item.ID] && !scannedRepos[repoKey] {
-					seenIDs[item.ID] = true
-					allRepos = append(allRepos, item)
+				// Respect search API rate limit (30 req/min authenticated)
+				time.Sleep(2 * time.Second)
+
+				// Stop paging if we've seen all results
+				if page*resultsPerPage >= result.TotalCount {
+					break
 				}
 			}
-
-			// Respect search API rate limit (30 req/min authenticated)
-			time.Sleep(2 * time.Second)
 		}
 
-		fmt.Printf("Query %q: collected %d unique new repos so far\n", query, len(allRepos))
+		fmt.Printf("Query %q: collected %d unique new repos so far\n", baseQuery, len(allRepos))
 	}
 
 	return allRepos, nil
@@ -198,7 +276,8 @@ func (s *scanner) hasGoreleaserConfig(owner, repo string) bool {
 // It checks for:
 //  1. Root-level main.go (always primary)
 //  2. cmd/ subdirectories (primary if single entry or name matches repo)
-//  3. Goreleaser config as a fallback
+//  3. Goreleaser config as a fallback (implies the repo produces binaries)
+//  4. Homebrew formula as a fallback (strong signal for installable binaries)
 func (s *scanner) findEntrypoints(owner, repo string) []entrypoint {
 	var entrypoints []entrypoint
 
@@ -213,26 +292,7 @@ func (s *scanner) findEntrypoints(owner, repo string) []entrypoint {
 	}
 
 	// Check for cmd/ directory (standard Go project layout)
-	var cmdDirs []string
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/cmd", owner, repo)
-	resp, err := s.apiGet(url)
-	if err == nil {
-		if resp.StatusCode == 200 {
-			var items []struct {
-				Name string `json:"name"`
-				Type string `json:"type"`
-			}
-			if err := json.NewDecoder(resp.Body).Decode(&items); err == nil {
-				for _, item := range items {
-					if item.Type == "dir" {
-						cmdDirs = append(cmdDirs, item.Name)
-					}
-				}
-			}
-		}
-		io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
-	}
+	cmdDirs := s.listSubdirs(owner, repo, "cmd")
 
 	for _, cmd := range cmdDirs {
 		isPrimary := false
@@ -254,14 +314,70 @@ func (s *scanner) findEntrypoints(owner, repo string) []entrypoint {
 
 	// Goreleaser fallback: implies the repo produces binaries
 	if s.hasGoreleaserConfig(owner, repo) {
-		entrypoints = append(entrypoints, entrypoint{
+		return []entrypoint{{
 			binaryName: repo,
 			pathSuffix: "",
 			isPrimary:  true,
-		})
+		}}
+	}
+
+	// Homebrew formula fallback: strong signal for installable CLI tools
+	if s.hasHomebrewFormula(owner, repo) {
+		return []entrypoint{{
+			binaryName: repo,
+			pathSuffix: "",
+			isPrimary:  true,
+		}}
 	}
 
 	return entrypoints
+}
+
+// listSubdirs returns the names of subdirectories at the given path in a repository.
+func (s *scanner) listSubdirs(owner, repo, path string) []string {
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", owner, repo, path)
+	resp, err := s.apiGet(url)
+	if err != nil {
+		return nil
+	}
+	defer func() {
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}()
+
+	if resp.StatusCode != 200 {
+		return nil
+	}
+
+	var items []struct {
+		Name string `json:"name"`
+		Type string `json:"type"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&items); err != nil {
+		return nil
+	}
+
+	var dirs []string
+	for _, item := range items {
+		if item.Type == "dir" {
+			dirs = append(dirs, item.Name)
+		}
+	}
+	return dirs
+}
+
+// hasHomebrewFormula checks if the repo has a Homebrew formula, which is a
+// strong indicator that the project produces installable binaries.
+func (s *scanner) hasHomebrewFormula(owner, repo string) bool {
+	for _, path := range []string{
+		"Formula",
+		"HomebrewFormula",
+	} {
+		if dirs := s.listSubdirs(owner, repo, path); len(dirs) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // getModulePath fetches the module path from go.mod (handles v2+ modules).
